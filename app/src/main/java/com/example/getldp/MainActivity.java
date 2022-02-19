@@ -13,7 +13,8 @@ import android.widget.TextView;
 
 public class MainActivity extends AppCompatActivity {
 
-    Uri CONTENT_URI = Uri.parse("content://com.example.ldp.provider/locations");
+    static String provider_auth_uri = "com.ldp.provider.auth";
+    Uri CONTENT_URI = Uri.parse("content://"+provider_auth_uri+"/locations");
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -27,7 +28,7 @@ public class MainActivity extends AppCompatActivity {
         TextView resultView= (TextView) findViewById(R.id.res);
         // creating a cursor object of the
         // content URI
-        Cursor cursor = getContentResolver().query(Uri.parse("content://com.example.ldp.provider/locations"), null, null, null, null);
+        Cursor cursor = getContentResolver().query(CONTENT_URI, null, null, null, null);
 
         // iteration of the cursor
         // to print whole table

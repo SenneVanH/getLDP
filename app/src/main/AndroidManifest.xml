@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.example.getldp">
-    <uses-permission android:name="com.ldp.MY_PERMISSION_FOR_SOMETHING"/>
+
+    <uses-permission android:name="com.ldp.LDP_PROVIDER_PERMISSION" />
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
@@ -19,5 +20,10 @@
             </intent-filter>
         </activity>
     </application>
+
+    <queries>
+        <provider android:authorities="com.ldp.provider.auth"
+            />
+    </queries>
 
 </manifest>
