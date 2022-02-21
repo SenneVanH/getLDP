@@ -13,7 +13,7 @@ import android.widget.TextView;
 
 public class MainActivity extends AppCompatActivity {
 
-    static String provider_auth_uri = "com.ldp.provider.auth";
+    static String provider_auth_uri = "com.ldp.provider";
     Uri CONTENT_URI = Uri.parse("content://"+provider_auth_uri+"/locations");
 
     @Override
