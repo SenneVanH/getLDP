@@ -2,7 +2,7 @@ package com.example.getldp;
 
 
 public class LocEntity {
-    private Integer userId;
+    private long userId;
     private double longitude;
     private double latitude;
     private boolean exact; //if exact is true, this means no noise has been added to it.
@@ -24,11 +24,11 @@ public class LocEntity {
         this.exact = exact;
     }
 
-    public Integer getUserId() {
+    public long getUserId() {
         return userId;
     }
 
-    public void setUserId(Integer userId) {
+    public void setUserId(long userId) {
         this.userId = userId;
     }
 

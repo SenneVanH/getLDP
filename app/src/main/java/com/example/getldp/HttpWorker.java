@@ -1,9 +1,16 @@
 package com.example.getldp;
 
+import android.Manifest;
+import android.annotation.SuppressLint;
 import android.content.Context;
+import android.content.pm.PackageManager;
+import android.database.Cursor;
+import android.location.Location;
+import android.location.LocationManager;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
+import androidx.core.app.ActivityCompat;
 import androidx.work.ExistingPeriodicWorkPolicy;
 import androidx.work.PeriodicWorkRequest;
 import androidx.work.WorkManager;
@@ -12,11 +19,7 @@ import androidx.work.WorkerParameters;
 
 import com.android.volley.Request;
 import com.android.volley.RequestQueue;
-import com.android.volley.Response;
-import com.android.volley.VolleyError;
-import com.android.volley.VolleyLog;
 import com.android.volley.toolbox.JsonObjectRequest;
-import com.android.volley.toolbox.StringRequest;
 import com.android.volley.toolbox.Volley;
 import com.google.gson.Gson;
 
@@ -34,11 +37,28 @@ public class HttpWorker extends Worker {
     private static final long repeatIntervalMillis = PeriodicWorkRequest.MIN_PERIODIC_INTERVAL_MILLIS; //15 minutes
     private static final long flexIntervalMillis = PeriodicWorkRequest.MIN_PERIODIC_FLEX_MILLIS; //5 minutes
     private static RequestQueue requestQueue;
+    private static Location realLocation; // request to be updated is in constructor of httpworker
 
     public HttpWorker(@NonNull Context context, @NonNull WorkerParameters params) {
         super(context, params);
         requestQueue = Volley.newRequestQueue(context);
-        ;
+        LocationManager locationManager = (LocationManager) context.getSystemService(Context.LOCATION_SERVICE);
+        if (ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            // TODO: Consider calling
+            //    ActivityCompat#requestPermissions
+            // here to request the missing permissions, and then overriding
+            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+            //                                          int[] grantResults)
+            // to handle the case where the user grants the permission. See the documentation
+            // for ActivityCompat#requestPermissions for more details.
+//            return //TODO: fix permission popup or smth
+            return;
+        }
+        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 900_000L, // 900000 == 15 min, so this location is at most 15 min old
+                10.0f, location -> {
+                    realLocation = location;
+                });
+        realLocation = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
     }
 
     private static PeriodicWorkRequest getOwnWorkRequest() {
@@ -51,30 +71,51 @@ public class HttpWorker extends Worker {
         WorkManager.getInstance(ctx).enqueueUniquePeriodicWork(uniqueWorkName, ExistingPeriodicWorkPolicy.KEEP, getOwnWorkRequest());
     }
 
+    @SuppressLint("Range")
     @NonNull
     @Override
     public Worker.Result doWork() {
+        Cursor cursor = getApplicationContext().getContentResolver().query(MainActivity.CONTENT_URI, null, null, null, null);
         //send 2 POST request every 15 min
-        LocEntity testLocEntity = new LocEntity();
-        testLocEntity.setEpoch(123);
-        testLocEntity.setExact(true);
-        testLocEntity.setUserId(123);
-        testLocEntity.setLatitude(321);
-        testLocEntity.setLongitude(321);
-        //real location
+        LocEntity perturbedLocEntity = new LocEntity();
+        LocEntity realLocEntity = new LocEntity();
+        if (cursor.moveToFirst()) {
+            perturbedLocEntity.setEpoch(System.currentTimeMillis());
+            perturbedLocEntity.setExact(false);
+//        perturbedLocEntity.setUserId(); //TODO: get hash of IMEI or other uID option
+            perturbedLocEntity.setUserId(1999); //placeholder value, delete this when uID fixed
+            perturbedLocEntity.setLatitude(cursor.getDouble(cursor.getColumnIndex("latitude")));
+            perturbedLocEntity.setLongitude(cursor.getDouble(cursor.getColumnIndex("longitude")));
+            cursor.close();
+            if (!doPostRequestForResult(perturbedLocEntity)) return Result.failure();
+        } else {
+            cursor.close();
+            Log.e("Provider_access", "no record found in provider URI");
+        }
+        //now sending real location
+        realLocEntity.setEpoch(System.currentTimeMillis());
+        realLocEntity.setExact(true);
+//        perturbedLocEntity.setUserId(); //TODO: get hash of IMEI or other uID option
+        realLocEntity.setUserId(1999); //placeholder value, delete this when uID fixed
+        realLocEntity.setLatitude(realLocation.getLatitude());
+        realLocEntity.setLongitude(realLocation.getLongitude());
+        if (doPostRequestForResult(realLocEntity)) return Result.success();
+        return Result.failure();
+    }
+
+    private boolean doPostRequestForResult(LocEntity locEntity) {
         try {
-            JSONObject request = new JSONObject(new Gson().toJson(testLocEntity));
+            JSONObject request = new JSONObject(new Gson().toJson(locEntity));
             JsonObjectRequest jsonObjectRequest = new JsonObjectRequest(Request.Method.POST, postURL, request, response -> {
-                Log.d("HTTP_POST","post done of:"+response.toString());
+                Log.d("HTTP_POST", "post done of:" + response.toString());
             }, error -> {
-                Log.e("HTTP_POST", "something went wrong, got: "+error.getMessage());
+                Log.e("HTTP_POST", "something went wrong, got: " + error.getMessage());
             });
             requestQueue.add(jsonObjectRequest);
         } catch (JSONException e) {
-            e.printStackTrace();
-            return Result.failure(); //idk what this does exactly tho
+            Log.e("HTTP_POST_JSONException", e.getMessage());
+            return false; //something went wrong
         }
-        return Result.success();
+        return true;
     }
 }
-//TODO: check if internet permission needed for requests
