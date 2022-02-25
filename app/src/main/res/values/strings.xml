@@ -2,4 +2,7 @@
     <string name="app_name">getLDP</string>
     <string name="heading">Accessing data of Content Provider</string>
     <string name="loadButtonText">Load Data</string>
+    <string name="title_location_permission">title_location_permission</string>
+    <string name="text_location_permission">text_location_permission</string>
+    <string name="ok">ok</string>
 </resources>

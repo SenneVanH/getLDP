@@ -7,9 +7,11 @@ import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.location.Location;
 import android.location.LocationManager;
+import android.os.Looper;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
+import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.work.ExistingPeriodicWorkPolicy;
 import androidx.work.PeriodicWorkRequest;
@@ -26,6 +28,8 @@ import com.google.gson.Gson;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -38,27 +42,30 @@ public class HttpWorker extends Worker {
     private static final long flexIntervalMillis = PeriodicWorkRequest.MIN_PERIODIC_FLEX_MILLIS; //5 minutes
     private static RequestQueue requestQueue;
     private static Location realLocation; // request to be updated is in constructor of httpworker
+    private final LocationManager locationManager;
 
     public HttpWorker(@NonNull Context context, @NonNull WorkerParameters params) {
         super(context, params);
         requestQueue = Volley.newRequestQueue(context);
-        LocationManager locationManager = (LocationManager) context.getSystemService(Context.LOCATION_SERVICE);
-        if (ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+        locationManager = (LocationManager) context.getSystemService(Context.LOCATION_SERVICE);
+        if (ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_BACKGROUND_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             // TODO: Consider calling
-            //    ActivityCompat#requestPermissions
             // here to request the missing permissions, and then overriding
             //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
             //                                          int[] grantResults)
             // to handle the case where the user grants the permission. See the documentation
             // for ActivityCompat#requestPermissions for more details.
-//            return //TODO: fix permission popup or smth
-            return;
+//            return //TODO: best put here a notification that when tapped takes you to the app for the first time
         }
+        Looper.prepare(); //Looper is used internally in LocationManager.requestLocationUpdates (has a handler with messages in it)
         locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 900_000L, // 900000 == 15 min, so this location is at most 15 min old
                 10.0f, location -> {
                     realLocation = location;
+                    //maybe keep track of the exact location time here.
                 });
-        realLocation = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
+        while(realLocation == null){
+            realLocation = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
+        }
     }
 
     private static PeriodicWorkRequest getOwnWorkRequest() {
@@ -71,14 +78,15 @@ public class HttpWorker extends Worker {
         WorkManager.getInstance(ctx).enqueueUniquePeriodicWork(uniqueWorkName, ExistingPeriodicWorkPolicy.KEEP, getOwnWorkRequest());
     }
 
-    @SuppressLint("Range")
+    @SuppressLint({"Range", "MissingPermission"})
     @NonNull
     @Override
     public Worker.Result doWork() {
-        Cursor cursor = getApplicationContext().getContentResolver().query(MainActivity.CONTENT_URI, null, null, null, null);
-        //send 2 POST request every 15 min
         LocEntity perturbedLocEntity = new LocEntity();
         LocEntity realLocEntity = new LocEntity();
+        //start real location fetch because part of it will run in the background
+        Cursor cursor = getApplicationContext().getContentResolver().query(MainActivity.CONTENT_URI, null, null, null, null);
+        //send 2 POST request every 15 min
         if (cursor.moveToFirst()) {
             perturbedLocEntity.setEpoch(System.currentTimeMillis());
             perturbedLocEntity.setExact(false);
