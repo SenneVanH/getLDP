@@ -1,33 +1,22 @@
 package com.example.getldp;
 
-import androidx.annotation.NonNull;
-import androidx.appcompat.app.AlertDialog;
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.app.ActivityCompat;
-import androidx.core.content.ContextCompat;
-
 import android.Manifest;
 import android.annotation.SuppressLint;
-import android.content.Context;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.RemoteException;
-import android.provider.Settings;
 import android.util.Log;
 import android.view.View;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.google.android.material.snackbar.Snackbar;
-
-import org.w3c.dom.Text;
-
-import java.security.SecureRandom;
+import androidx.annotation.NonNull;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -35,21 +24,10 @@ public class MainActivity extends AppCompatActivity {
     static final Uri CONTENT_URI = Uri.parse("content://" + provider_auth_uri + "/locations");
     public static final int MY_PERMISSIONS_REQUEST_LOCATION = 9;
     public static final int MY_PERMISSIONS_REQUEST_LOCATION_BACKGROUND = 8;
-    SharedPreferences sharedpreferences;
-    String MyPREFERENCES = "GETLDP_PREF";
-    public static long userId;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        sharedpreferences = getSharedPreferences(MyPREFERENCES, Context.MODE_PRIVATE);
-        userId = sharedpreferences.getLong("userId", 0L);
-        while (userId == 0L) {
-            SharedPreferences.Editor myEdit = sharedpreferences.edit();
-            userId = new SecureRandom().nextLong();
-            myEdit.putLong("userId", userId);
-            myEdit.apply();
-        }
         setContentView(R.layout.activity_main);
 
         if (ActivityCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {

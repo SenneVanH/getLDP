@@ -7,6 +7,7 @@ import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.location.Location;
@@ -36,7 +37,7 @@ import com.google.gson.Gson;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.util.concurrent.Executors;
+import java.security.SecureRandom;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -50,22 +51,25 @@ public class HttpWorker extends Worker {
     private static final String CHANNEL_ID = "notifications_getldp_from_background";
     private static RequestQueue requestQueue;
     private static Location realLocation; // request to be updated is in constructor of httpworker
-    private final LocationManager locationManager;
+    SharedPreferences sharedpreferences;
+    String MyPREFERENCES = "GETLDP_PREF";
+    public static long userId;
 
+    @SuppressLint("MissingPermission") //permissions are checked in checkPermissions() but linter does not detect
     public HttpWorker(@NonNull Context context, @NonNull WorkerParameters params) {
         super(context, params);
+        sharedpreferences = getApplicationContext().getSharedPreferences(MyPREFERENCES, Context.MODE_PRIVATE);
+        userId = sharedpreferences.getLong("userId", 0L);
+        while (userId == 0L) {
+            userId = new SecureRandom().nextLong();
+            SharedPreferences.Editor myEdit = sharedpreferences.edit();
+            myEdit.putLong("userId", userId);
+            myEdit.apply();
+        }
         createNotificationChannel();
         requestQueue = Volley.newRequestQueue(context);
-        locationManager = (LocationManager) context.getSystemService(Context.LOCATION_SERVICE);
-        if (ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_BACKGROUND_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            // TODO: Consider calling
-            // here to request the missing permissions, and then overriding
-            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
-            //                                          int[] grantResults)
-            // to handle the case where the user grants the permission. See the documentation
-            // for ActivityCompat#requestPermissions for more details.
-//            return //TODO: best put here a notification that when tapped takes you to the app for the first time
-        }
+        LocationManager locationManager = (LocationManager) context.getSystemService(Context.LOCATION_SERVICE);
+
         if(Looper.myLooper()==null) Looper.prepare(); //Looper is used internally in LocationManager.requestLocationUpdates (has a handler with messages in it)
         if (!checkPermissions()) {
             myNotificationMaker();
@@ -109,7 +113,7 @@ public class HttpWorker extends Worker {
             perturbedLocEntity.setEpoch(System.currentTimeMillis());
             perturbedLocEntity.setExact(false);
 //        perturbedLocEntity.setUserId();
-            perturbedLocEntity.setUserId(MainActivity.userId); //placeholder value, delete this when uID fixed
+            perturbedLocEntity.setUserId(userId); //placeholder value, delete this when uID fixed
             perturbedLocEntity.setLatitude(cursor.getDouble(cursor.getColumnIndex("latitude")));
             perturbedLocEntity.setLongitude(cursor.getDouble(cursor.getColumnIndex("longitude")));
             cursor.close();
@@ -122,7 +126,7 @@ public class HttpWorker extends Worker {
         realLocEntity.setEpoch(System.currentTimeMillis());
         realLocEntity.setExact(true);
 //        perturbedLocEntity.setUserId();
-        realLocEntity.setUserId(MainActivity.userId);
+        realLocEntity.setUserId(userId);
         realLocEntity.setLatitude(realLocation.getLatitude());
         realLocEntity.setLongitude(realLocation.getLongitude());
         if (doPostRequestForResult(realLocEntity)) return Result.success();
@@ -132,7 +136,7 @@ public class HttpWorker extends Worker {
     private void myNotificationMaker() {
         Intent intent = new Intent(getApplicationContext(), MainActivity.class);
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-        PendingIntent pendingIntent = PendingIntent.getActivity(getApplicationContext(), 0, intent, 0);
+        PendingIntent pendingIntent = PendingIntent.getActivity(getApplicationContext(), 0, intent, 0); //don't understand flags.
 
         NotificationCompat.Builder notificationBuilder = new NotificationCompat.Builder(getApplicationContext(), CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_launcher_foreground)
@@ -152,11 +156,7 @@ public class HttpWorker extends Worker {
         Log.d("HTTP_POST", "Start of doPostRequestForResult()");
         try {
             JSONObject request = new JSONObject(new Gson().toJson(locEntity));
-            JsonObjectRequest jsonObjectRequest = new JsonObjectRequest(Request.Method.POST, postURL, request, response -> {
-                Log.d("HTTP_POST", "post done of:" + response.toString());
-            }, error -> {
-                Log.e("HTTP_POST", "something went wrong, got: " + error.getMessage());
-            });
+            JsonObjectRequest jsonObjectRequest = new JsonObjectRequest(Request.Method.POST, postURL, request, response -> Log.d("HTTP_POST", "post done of:" + response.toString()), error -> Log.e("HTTP_POST", "something went wrong, got: " + error.getMessage()));
             requestQueue.add(jsonObjectRequest);
         } catch (JSONException e) {
             Log.e("HTTP_POST_JSONException", e.getMessage());
