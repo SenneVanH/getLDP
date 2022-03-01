@@ -149,6 +149,7 @@ public class HttpWorker extends Worker {
     }
 
     private boolean doPostRequestForResult(LocEntity locEntity) {
+        Log.d("HTTP_POST", "Start of doPostRequestForResult()");
         try {
             JSONObject request = new JSONObject(new Gson().toJson(locEntity));
             JsonObjectRequest jsonObjectRequest = new JsonObjectRequest(Request.Method.POST, postURL, request, response -> {
