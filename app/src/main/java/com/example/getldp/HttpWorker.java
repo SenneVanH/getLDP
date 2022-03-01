@@ -2,17 +2,23 @@ package com.example.getldp;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.content.Context;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.location.Location;
 import android.location.LocationManager;
+import android.os.Build;
 import android.os.Looper;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
+import androidx.core.app.NotificationCompat;
 import androidx.work.BackoffPolicy;
 import androidx.work.ExistingPeriodicWorkPolicy;
 import androidx.work.PeriodicWorkRequest;
@@ -42,9 +48,12 @@ public class HttpWorker extends Worker {
     private static final String postURL = "https://first-spring-app-locldp.azuremicroservices.io/db/addjson";
     private static final long repeatIntervalMillis = PeriodicWorkRequest.MIN_PERIODIC_INTERVAL_MILLIS; //15 minutes
     private static final long flexIntervalMillis = PeriodicWorkRequest.MIN_PERIODIC_FLEX_MILLIS; //5 minutes
+    private static final String CHANNEL_ID = "notifications_getldp_from_background";
     private static RequestQueue requestQueue;
     private static Location realLocation; // request to be updated is in constructor of httpworker
     private final LocationManager locationManager;
+    public static final int MY_PERMISSIONS_REQUEST_LOCATION = 99;
+    public static final int MY_PERMISSIONS_REQUEST_LOCATION_BACKGROUND = 98;
 
     public HttpWorker(@NonNull Context context, @NonNull WorkerParameters params) {
         super(context, params);
@@ -73,7 +82,7 @@ public class HttpWorker extends Worker {
     private static PeriodicWorkRequest getOwnWorkRequest() {
         return new PeriodicWorkRequest.Builder(
                 HttpWorker.class, repeatIntervalMillis, TimeUnit.MILLISECONDS, flexIntervalMillis, TimeUnit.MILLISECONDS
-        ).setBackoffCriteria(BackoffPolicy.LINEAR, WorkRequest.DEFAULT_BACKOFF_DELAY_MILLIS,TimeUnit.MILLISECONDS).build();
+        ).setBackoffCriteria(BackoffPolicy.LINEAR, WorkRequest.DEFAULT_BACKOFF_DELAY_MILLIS, TimeUnit.MILLISECONDS).build();
     }
 
     public static void enqueueSelf(Context ctx) {
@@ -84,7 +93,10 @@ public class HttpWorker extends Worker {
     @NonNull
     @Override
     public Worker.Result doWork() {
-        if (!checkPermissions()) return Result.retry();
+        if (!checkPermissions()) {
+            myNotificationMaker();
+            return Result.retry();
+        }
         LocEntity perturbedLocEntity = new LocEntity();
         LocEntity realLocEntity = new LocEntity();
         //start real location fetch because part of it will run in the background
@@ -114,6 +126,21 @@ public class HttpWorker extends Worker {
         return Result.retry();
     }
 
+    private void myNotificationMaker() {
+        Intent intent = new Intent(getApplicationContext(), MainActivity.class);
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        PendingIntent pendingIntent = PendingIntent.getActivity(getApplicationContext(), 0, intent, 0);
+
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(getApplicationContext(), CHANNEL_ID)
+                .setSmallIcon(R.drawable.ic_launcher_foreground)
+                .setContentTitle("Requesting Location")
+                .setContentText("The app GETLDP does not have the necessary permissions to access location in the background. Go to the app to change your preferences")
+//            .setStyle(new NotificationCompat.BigTextStyle()
+//                    .bigText("Much longer text that cannot fit one line..."))
+                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                .setContentIntent(pendingIntent);
+    }
+
     private boolean doPostRequestForResult(LocEntity locEntity) {
         try {
             JSONObject request = new JSONObject(new Gson().toJson(locEntity));
@@ -131,7 +158,29 @@ public class HttpWorker extends Worker {
     }
 
     private boolean checkPermissions() {
-
+        if (ActivityCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.ACCESS_BACKGROUND_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            return false;
+        }
+        if (ActivityCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            //android Q == API 29. also see https://stackoverflow.com/a/69395540/13286640
+            return Build.VERSION.SDK_INT < Build.VERSION_CODES.Q;
+        }
         return true;
+    }
+
+    private void createNotificationChannel() {
+        // Create the NotificationChannel, but only on API 26+ because
+        // the NotificationChannel class is new and not in the support library
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            CharSequence name = getApplicationContext().getString(R.string.channel_name);
+            String description = getApplicationContext().getString(R.string.channel_description);
+            int importance = NotificationManager.IMPORTANCE_DEFAULT;
+            NotificationChannel channel = new NotificationChannel(CHANNEL_ID, name, importance);
+            channel.setDescription(description);
+            // Register the channel with the system; you can't change the importance
+            // or other notification behaviors after this
+            NotificationManager notificationManager = getApplicationContext().getSystemService(NotificationManager.class);
+            notificationManager.createNotificationChannel(channel);
+        }
     }
 }

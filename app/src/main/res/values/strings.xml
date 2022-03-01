@@ -5,4 +5,6 @@
     <string name="title_location_permission">title_location_permission</string>
     <string name="text_location_permission">text_location_permission</string>
     <string name="ok">ok</string>
+    <string name="channel_name">notifications_getldp_from_background</string>
+    <string name="channel_description">The app GETLDP does not have the necessary permissions to access location in the background. Go to the app to change your preferences</string>
 </resources>
