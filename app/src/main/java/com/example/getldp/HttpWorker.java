@@ -13,9 +13,11 @@ import android.util.Log;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
+import androidx.work.BackoffPolicy;
 import androidx.work.ExistingPeriodicWorkPolicy;
 import androidx.work.PeriodicWorkRequest;
 import androidx.work.WorkManager;
+import androidx.work.WorkRequest;
 import androidx.work.Worker;
 import androidx.work.WorkerParameters;
 
@@ -63,7 +65,7 @@ public class HttpWorker extends Worker {
                     realLocation = location;
                     //maybe keep track of the exact location time here.
                 });
-        while(realLocation == null){
+        while (realLocation == null) {
             realLocation = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
         }
     }
@@ -71,7 +73,7 @@ public class HttpWorker extends Worker {
     private static PeriodicWorkRequest getOwnWorkRequest() {
         return new PeriodicWorkRequest.Builder(
                 HttpWorker.class, repeatIntervalMillis, TimeUnit.MILLISECONDS, flexIntervalMillis, TimeUnit.MILLISECONDS
-        ).build();
+        ).setBackoffCriteria(BackoffPolicy.LINEAR, WorkRequest.DEFAULT_BACKOFF_DELAY_MILLIS,TimeUnit.MILLISECONDS).build();
     }
 
     public static void enqueueSelf(Context ctx) {
@@ -82,6 +84,7 @@ public class HttpWorker extends Worker {
     @NonNull
     @Override
     public Worker.Result doWork() {
+        if (!checkPermissions()) return Result.retry();
         LocEntity perturbedLocEntity = new LocEntity();
         LocEntity realLocEntity = new LocEntity();
         //start real location fetch because part of it will run in the background
@@ -95,7 +98,7 @@ public class HttpWorker extends Worker {
             perturbedLocEntity.setLatitude(cursor.getDouble(cursor.getColumnIndex("latitude")));
             perturbedLocEntity.setLongitude(cursor.getDouble(cursor.getColumnIndex("longitude")));
             cursor.close();
-            if (!doPostRequestForResult(perturbedLocEntity)) return Result.failure();
+            if (!doPostRequestForResult(perturbedLocEntity)) return Result.retry();
         } else {
             cursor.close();
             Log.e("Provider_access", "no record found in provider URI");
@@ -108,7 +111,7 @@ public class HttpWorker extends Worker {
         realLocEntity.setLatitude(realLocation.getLatitude());
         realLocEntity.setLongitude(realLocation.getLongitude());
         if (doPostRequestForResult(realLocEntity)) return Result.success();
-        return Result.failure();
+        return Result.retry();
     }
 
     private boolean doPostRequestForResult(LocEntity locEntity) {
@@ -124,6 +127,11 @@ public class HttpWorker extends Worker {
             Log.e("HTTP_POST_JSONException", e.getMessage());
             return false; //something went wrong
         }
+        return true;
+    }
+
+    private boolean checkPermissions() {
+
         return true;
     }
 }
