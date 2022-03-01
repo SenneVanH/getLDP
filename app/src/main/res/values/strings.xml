@@ -8,4 +8,6 @@
     <string name="channel_name">notifications_getldp_from_background</string>
     <string name="channel_description">The app GETLDP does not have the necessary permissions to access location in the background. Go to the app to change your preferences</string>
     <string name="page_address">https://github.com/SenneVanH/getldp</string>
+    <string name="Android11WarningText">You are using Android 11. For Android 11 you have to manually give permission to access location background in app settings, see \n</string>
+    <string name="NoRecordsFound">No Records Found</string>
 </resources>

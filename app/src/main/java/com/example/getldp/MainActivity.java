@@ -43,7 +43,7 @@ public class MainActivity extends AppCompatActivity {
 //                });
 //                snackBar.show();
                 TextView textView = findViewById(R.id.textView1);
-                textView.setText("You are using Android 11. For Android 11 you have to manually give permission to access location background in app settings, see \n" + getString(R.string.page_address) + "\n (you can click this text)");
+                textView.setText(getString(R.string.Android11WarningText) + getString(R.string.page_address) + "\n (you can click this text)");
                 textView.setOnClickListener(view -> {
                     Intent browserIntent = new Intent(Intent.ACTION_VIEW, Uri.parse(getString(R.string.page_address)));
                     startActivity(browserIntent);
@@ -100,7 +100,7 @@ public class MainActivity extends AppCompatActivity {
             cursor.close();
         } else {
             cursor.close();
-            resultView.setText("No Records Found");
+            resultView.setText(R.string.NoRecordsFound);
         }
     }
 }
