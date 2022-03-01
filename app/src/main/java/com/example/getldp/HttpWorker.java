@@ -16,9 +16,9 @@ import android.os.Looper;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
-import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.app.NotificationCompat;
+import androidx.core.app.NotificationManagerCompat;
 import androidx.work.BackoffPolicy;
 import androidx.work.ExistingPeriodicWorkPolicy;
 import androidx.work.PeriodicWorkRequest;
@@ -36,7 +36,6 @@ import com.google.gson.Gson;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
@@ -52,11 +51,10 @@ public class HttpWorker extends Worker {
     private static RequestQueue requestQueue;
     private static Location realLocation; // request to be updated is in constructor of httpworker
     private final LocationManager locationManager;
-    public static final int MY_PERMISSIONS_REQUEST_LOCATION = 99;
-    public static final int MY_PERMISSIONS_REQUEST_LOCATION_BACKGROUND = 98;
 
     public HttpWorker(@NonNull Context context, @NonNull WorkerParameters params) {
         super(context, params);
+        createNotificationChannel();
         requestQueue = Volley.newRequestQueue(context);
         locationManager = (LocationManager) context.getSystemService(Context.LOCATION_SERVICE);
         if (ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_BACKGROUND_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
@@ -68,7 +66,13 @@ public class HttpWorker extends Worker {
             // for ActivityCompat#requestPermissions for more details.
 //            return //TODO: best put here a notification that when tapped takes you to the app for the first time
         }
-        Looper.prepare(); //Looper is used internally in LocationManager.requestLocationUpdates (has a handler with messages in it)
+        if(Looper.myLooper()==null) Looper.prepare(); //Looper is used internally in LocationManager.requestLocationUpdates (has a handler with messages in it)
+        if (!checkPermissions()) {
+            myNotificationMaker();
+        }
+        while (!checkPermissions()) {
+            Thread.yield();
+        }
         locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 900_000L, // 900000 == 15 min, so this location is at most 15 min old
                 10.0f, location -> {
                     realLocation = location;
@@ -94,7 +98,6 @@ public class HttpWorker extends Worker {
     @Override
     public Worker.Result doWork() {
         if (!checkPermissions()) {
-            myNotificationMaker();
             return Result.retry();
         }
         LocEntity perturbedLocEntity = new LocEntity();
@@ -131,14 +134,18 @@ public class HttpWorker extends Worker {
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         PendingIntent pendingIntent = PendingIntent.getActivity(getApplicationContext(), 0, intent, 0);
 
-        NotificationCompat.Builder builder = new NotificationCompat.Builder(getApplicationContext(), CHANNEL_ID)
+        NotificationCompat.Builder notificationBuilder = new NotificationCompat.Builder(getApplicationContext(), CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_launcher_foreground)
                 .setContentTitle("Requesting Location")
                 .setContentText("The app GETLDP does not have the necessary permissions to access location in the background. Go to the app to change your preferences")
 //            .setStyle(new NotificationCompat.BigTextStyle()
 //                    .bigText("Much longer text that cannot fit one line..."))
                 .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                .setAutoCancel(true)
                 .setContentIntent(pendingIntent);
+        NotificationManagerCompat notificationManager =
+                NotificationManagerCompat.from(getApplicationContext());
+        notificationManager.notify(1999, notificationBuilder.build());
     }
 
     private boolean doPostRequestForResult(LocEntity locEntity) {
