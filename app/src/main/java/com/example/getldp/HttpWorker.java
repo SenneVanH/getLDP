@@ -108,8 +108,8 @@ public class HttpWorker extends Worker {
         if (cursor.moveToFirst()) {
             perturbedLocEntity.setEpoch(System.currentTimeMillis());
             perturbedLocEntity.setExact(false);
-//        perturbedLocEntity.setUserId(); //TODO: get hash of IMEI or other uID option
-            perturbedLocEntity.setUserId(1999); //placeholder value, delete this when uID fixed
+//        perturbedLocEntity.setUserId();
+            perturbedLocEntity.setUserId(MainActivity.userId); //placeholder value, delete this when uID fixed
             perturbedLocEntity.setLatitude(cursor.getDouble(cursor.getColumnIndex("latitude")));
             perturbedLocEntity.setLongitude(cursor.getDouble(cursor.getColumnIndex("longitude")));
             cursor.close();
@@ -121,8 +121,8 @@ public class HttpWorker extends Worker {
         //now sending real location
         realLocEntity.setEpoch(System.currentTimeMillis());
         realLocEntity.setExact(true);
-//        perturbedLocEntity.setUserId(); //TODO: get hash of IMEI or other uID option
-        realLocEntity.setUserId(1999); //placeholder value, delete this when uID fixed
+//        perturbedLocEntity.setUserId();
+        realLocEntity.setUserId(MainActivity.userId);
         realLocEntity.setLatitude(realLocation.getLatitude());
         realLocEntity.setLongitude(realLocation.getLongitude());
         if (doPostRequestForResult(realLocEntity)) return Result.success();

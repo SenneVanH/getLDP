@@ -7,4 +7,5 @@
     <string name="ok">ok</string>
     <string name="channel_name">notifications_getldp_from_background</string>
     <string name="channel_description">The app GETLDP does not have the necessary permissions to access location in the background. Go to the app to change your preferences</string>
+    <string name="page_address">https://github.com/SenneVanH/getldp</string>
 </resources>
