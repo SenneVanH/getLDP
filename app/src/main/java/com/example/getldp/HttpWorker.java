@@ -84,6 +84,7 @@ public class HttpWorker extends Worker {
                 });
         while (realLocation == null) {
             realLocation = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
+            Thread.yield();
         }
     }
 
@@ -166,10 +167,10 @@ public class HttpWorker extends Worker {
     }
 
     private boolean checkPermissions() {
-        if (ActivityCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.ACCESS_BACKGROUND_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+        if (ActivityCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             return false;
         }
-        if (ActivityCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+        if (ActivityCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.ACCESS_BACKGROUND_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             //android Q == API 29. also see https://stackoverflow.com/a/69395540/13286640
             return Build.VERSION.SDK_INT < Build.VERSION_CODES.Q;
         }
