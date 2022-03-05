@@ -22,6 +22,8 @@ import androidx.core.app.NotificationCompat;
 import androidx.core.app.NotificationManagerCompat;
 import androidx.work.BackoffPolicy;
 import androidx.work.ExistingPeriodicWorkPolicy;
+import androidx.work.ExistingWorkPolicy;
+import androidx.work.OneTimeWorkRequest;
 import androidx.work.PeriodicWorkRequest;
 import androidx.work.WorkManager;
 import androidx.work.WorkRequest;
@@ -44,6 +46,7 @@ import java.util.concurrent.TimeUnit;
  * credit to https://stackoverflow.com/questions/53043183/how-to-register-a-periodic-work-request-with-workmanger-system-wide-once-i-e-a/53507670#53507670
  */
 public class HttpWorker extends Worker {
+    private static final String instantUniqueWorkName = "com.example.getldp.HttpWorker.instant";
     private static final String uniqueWorkName = "com.example.getldp.HttpWorker";
     private static final String postURL = "https://first-spring-app-locldp.azuremicroservices.io/db/addjson";
     private static final long repeatIntervalMillis = PeriodicWorkRequest.MIN_PERIODIC_INTERVAL_MILLIS; //15 minutes
@@ -55,7 +58,8 @@ public class HttpWorker extends Worker {
     String MyPREFERENCES = "GETLDP_PREF";
     public static long userId;
 
-    @SuppressLint("MissingPermission") //permissions are checked in checkPermissions() but linter does not detect
+    @SuppressLint("MissingPermission")
+    //permissions are checked in checkPermissions() but linter does not detect
     public HttpWorker(@NonNull Context context, @NonNull WorkerParameters params) {
         super(context, params);
         sharedpreferences = getApplicationContext().getSharedPreferences(MyPREFERENCES, Context.MODE_PRIVATE);
@@ -70,7 +74,8 @@ public class HttpWorker extends Worker {
         requestQueue = Volley.newRequestQueue(context);
         LocationManager locationManager = (LocationManager) context.getSystemService(Context.LOCATION_SERVICE);
 
-        if(Looper.myLooper()==null) Looper.prepare(); //Looper is used internally in LocationManager.requestLocationUpdates (has a handler with messages in it)
+        if (Looper.myLooper() == null)
+            Looper.prepare(); //Looper is used internally in LocationManager.requestLocationUpdates (has a handler with messages in it)
         if (!checkPermissions()) {
             myNotificationMaker();
         }

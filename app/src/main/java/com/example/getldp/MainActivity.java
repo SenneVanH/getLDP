@@ -22,62 +22,56 @@ public class MainActivity extends AppCompatActivity {
 
     static final String provider_auth_uri = "com.ldp.provider";
     static final Uri CONTENT_URI = Uri.parse("content://" + provider_auth_uri + "/locations");
-    public static final int MY_PERMISSIONS_REQUEST_LOCATION = 9;
-    public static final int MY_PERMISSIONS_REQUEST_LOCATION_BACKGROUND = 8;
+    public static final int FINE_REQUEST_CODE = 1999;
+    public static final int BACKGROUND_REQUEST_CODE = 1998;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        if (ActivityCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, MY_PERMISSIONS_REQUEST_LOCATION);
-        }
-        if (ActivityCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.ACCESS_BACKGROUND_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            if (Build.VERSION.SDK_INT == Build.VERSION_CODES.R) { //if android version == 11 (API 30)
-//                Snackbar snackBar = Snackbar.make(findViewById(R.id.loadButton),
-//                        "For Android 11 you have to manually give permission in app settings, see " + getString(R.string.page_address),
-//                        Snackbar.LENGTH_LONG).setAction("INFO", view -> {
-//                    Intent browserIntent = new Intent(Intent.ACTION_VIEW, Uri.parse(getString(R.string.page_address)));
-//                    startActivity(browserIntent);
-//                });
-//                snackBar.show();
-                TextView textView = findViewById(R.id.textView1);
-                textView.setText(getString(R.string.Android11WarningText) + getString(R.string.page_address) + "\n (you can click this text)");
-                textView.setOnClickListener(view -> {
-                    Intent browserIntent = new Intent(Intent.ACTION_VIEW, Uri.parse(getString(R.string.page_address)));
-                    startActivity(browserIntent);
-                });
-//                    startActivityForResult(new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS), 0);
-            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) { //android Q == API 29. also see https://stackoverflow.com/a/69395540/13286640
-                ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_BACKGROUND_LOCATION}, MY_PERMISSIONS_REQUEST_LOCATION_BACKGROUND);
-            }
-        }
-
-        HttpWorker.enqueueSelf(getApplicationContext()); //it is not a problem to enqueue multiple times, if it already exists it's a null operation.
+        requestPermissions();
+        // main code branch proceeds in onrequestpermissionsresult()
     }
 
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-        boolean permissions_ok = true;
-        if (requestCode == MY_PERMISSIONS_REQUEST_LOCATION) {
-            Log.i("GETLDP_PERMISSIONS", "Received response for Camera permission request.");
+        if (requestCode == FINE_REQUEST_CODE) {
+            Log.i("GETLDP_PERMISSIONS", "Received response for Fine location permission request.");
             if (grantResults.length == 1 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                Toast.makeText(this, "Location permission granted", Toast.LENGTH_LONG).show();
-            } else {
-                permissions_ok = false;
+                Toast.makeText(this, "Location permission granted", Toast.LENGTH_SHORT).show();
             }
         }
-        if (requestCode == MY_PERMISSIONS_REQUEST_LOCATION_BACKGROUND) {
-            Log.i("GETLDP_PERMISSIONS", "Received response for Camera permission request.");
+        if (requestCode == BACKGROUND_REQUEST_CODE) {
+            Log.i("GETLDP_PERMISSIONS", "Received response for Background location permission request.");
             if (grantResults.length == 1 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                Toast.makeText(this, "BACKGROUND location permission granted", Toast.LENGTH_LONG).show();
-            } else {
-                permissions_ok = false;
+                Toast.makeText(this, "BACKGROUND location permission granted", Toast.LENGTH_SHORT).show();
             }
         }
-        if (permissions_ok) HttpWorker.enqueueSelf(getApplicationContext());
+        requestPermissions(); //another round of permission checks. if they are all OK we will not get here again
+        HttpWorker.enqueueSelf(getApplicationContext());
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+    }
+
+    private void requestPermissions() {
+        if (Build.VERSION.SDK_INT < 29) {
+            if (ActivityCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.ACCESS_BACKGROUND_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, FINE_REQUEST_CODE);
+            }
+        } else if (Build.VERSION.SDK_INT == 29) { //api level 29
+            if (ActivityCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.ACCESS_BACKGROUND_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_BACKGROUND_LOCATION}, BACKGROUND_REQUEST_CODE);
+            }
+        }
+        else { //api level >=30
+            if (ActivityCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, FINE_REQUEST_CODE);
+            }
+            // else if is use beneath to make sure only one permission request is done at a time. the onpermissionresult listener keeps calling requestpermissions until no more requests are done.
+            else if (ActivityCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.ACCESS_BACKGROUND_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_BACKGROUND_LOCATION}, FINE_REQUEST_CODE);
+            }
+        }
     }
 
     @SuppressLint("Range")
