@@ -25,6 +25,7 @@ public class MainActivity extends AppCompatActivity {
     static final Uri CONTENT_URI = Uri.parse("content://" + provider_auth_uri + "/locations");
     public static final int FINE_REQUEST_CODE = 1999;
     public static final int BACKGROUND_REQUEST_CODE = 1998;
+    public static String PACKAGE_NAME;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -32,6 +33,7 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         requestPermissions();
+        PACKAGE_NAME = getApplicationContext().getPackageName();
         // main code branch proceeds in onrequestpermissionsresult()
     }
 
@@ -101,11 +103,11 @@ public class MainActivity extends AppCompatActivity {
 
     public void onClickRequestUri(View view){
         final Intent intent=new Intent();
-        intent.setAction("com.pkg.perform.Ruby");
-        intent.putExtra("KeyName","code1id");
+        intent.setAction("com.ldp.package.uri");
+        intent.setPackage(getPackageName());
         intent.addFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES);
         intent.setComponent(
-                new ComponentName("com.pkg.AppB","com.pkg.AppB.MyBroadcastReceiver"));
+                new ComponentName("com.example.locldp2","com.example.locldp2.UriRequestReceiver"));
         sendBroadcast(intent);
     }
 }
