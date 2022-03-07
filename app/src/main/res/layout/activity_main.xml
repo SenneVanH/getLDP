@@ -14,7 +14,6 @@
         android:layout_height="wrap_content"
         android:layout_centerVertical="true"
         android:orientation="vertical"
-        app:layout_constraintBottom_toTopOf="@+id/imageView"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
@@ -53,6 +52,23 @@
             android:textColor="#FFFFFF"
             android:textStyle="bold" />
 
+        <Button
+            android:id="@+id/uriButton"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_marginStart="20dp"
+            android:layout_marginTop="10dp"
+            android:layout_marginEnd="20dp"
+            android:layout_marginBottom="20dp"
+            android:background="#4CAF50"
+            android:fontFamily="sans-serif"
+            android:onClick="onClickRequestUri"
+            android:text="Request URI"
+            android:textAlignment="center"
+            android:textAppearance="@style/TextAppearance.AppCompat.Display1"
+            android:textColor="#FFFFFF"
+            android:textStyle="bold" />
+
         <TextView
             android:id="@+id/res"
             android:layout_width="match_parent"
@@ -68,13 +84,5 @@
 
     </LinearLayout>
 
-<!--    <ImageView-->
-<!--        android:id="@+id/imageView"-->
-<!--        android:layout_width="wrap_content"-->
-<!--        android:layout_height="wrap_content"-->
-<!--        app:layout_constraintBottom_toBottomOf="parent"-->
-<!--        app:layout_constraintEnd_toEndOf="parent"-->
-<!--        app:layout_constraintStart_toStartOf="parent"-->
-<!--        app:srcCompat="@drawable/banner" />-->
 
 </androidx.constraintlayout.widget.ConstraintLayout>

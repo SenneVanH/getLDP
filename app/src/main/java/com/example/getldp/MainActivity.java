@@ -2,6 +2,7 @@ package com.example.getldp;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
+import android.content.ComponentName;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
@@ -96,5 +97,15 @@ public class MainActivity extends AppCompatActivity {
             cursor.close();
             resultView.setText(R.string.NoRecordsFound);
         }
+    }
+
+    public void onClickRequestUri(View view){
+        final Intent intent=new Intent();
+        intent.setAction("com.pkg.perform.Ruby");
+        intent.putExtra("KeyName","code1id");
+        intent.addFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES);
+        intent.setComponent(
+                new ComponentName("com.pkg.AppB","com.pkg.AppB.MyBroadcastReceiver"));
+        sendBroadcast(intent);
     }
 }
