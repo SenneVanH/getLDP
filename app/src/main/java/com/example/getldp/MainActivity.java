@@ -18,6 +18,17 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
+import androidx.work.OneTimeWorkRequest;
+import androidx.work.WorkManager;
+
+import com.android.volley.Request;
+import com.android.volley.RequestQueue;
+import com.android.volley.toolbox.JsonObjectRequest;
+import com.android.volley.toolbox.Volley;
+import com.google.gson.Gson;
+
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -120,6 +131,33 @@ public class MainActivity extends AppCompatActivity {
 
         }catch (Exception e){
             Log.d("RequestingUri: ", e.getMessage());
+        }
+    }
+
+    public void onClickTestBackground(View view) {
+        OneTimeWorkRequest request =
+                new OneTimeWorkRequest.Builder(HttpWorker.class)
+                        .build();
+        WorkManager workManager = WorkManager.getInstance(getApplicationContext());
+        workManager.enqueue(request);
+    }
+
+    public void onClickTestHttpPost(){
+        RequestQueue requestQueue = Volley.newRequestQueue(getApplicationContext());
+        LocEntity locEntity = new LocEntity();
+        locEntity.setRadius(123);
+        locEntity.setLongitude(123);
+        locEntity.setLatitude(123);
+        locEntity.setEpoch(123);
+        locEntity.setUserId(123);
+        locEntity.setExact(false);
+        Log.d("HTTP_POST", "Start of doPostRequestForResult()");
+        try {
+            JSONObject request = new JSONObject(new Gson().toJson(locEntity));
+            JsonObjectRequest jsonObjectRequest = new JsonObjectRequest(Request.Method.POST, "https://first-spring-app-locldp.azuremicroservices.io/db/addjson", request, response -> Log.d("HTTP_POST", "post done of:" + response.toString()), error -> Log.e("HTTP_POST", "something went wrong, got: " + error.getMessage()));
+            requestQueue.add(jsonObjectRequest);
+        } catch (JSONException e) {
+            Log.e("HTTP_POST_JSONException", e.getMessage());
         }
     }
 }

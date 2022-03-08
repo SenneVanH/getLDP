@@ -38,6 +38,7 @@
     <queries>
         <provider android:authorities="com.ldp.provider"
             />
+        <package android:name="com.example.locldp2"/>
     </queries>
 
 </manifest>

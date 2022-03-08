@@ -7,6 +7,15 @@ public class LocEntity {
     private double latitude;
     private boolean exact; //if exact is true, this means no noise has been added to it.
     private long epoch; //milliseconds since epoch. System.currentTimeMillis() should be used in client
+    private double radius = 0; //measure of the accuracy of the perturbed location
+
+    public double getRadius() {
+        return radius;
+    }
+
+    public void setRadius(double radius) {
+        this.radius = radius;
+    }
 
     public long getEpoch() {
         return epoch;

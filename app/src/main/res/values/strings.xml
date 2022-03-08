@@ -10,4 +10,5 @@
     <string name="page_address">https://github.com/SenneVanH/getldp</string>
     <string name="Android11WarningText">You are using Android 11. For Android 11 you have to manually give permission to access location background in app settings, see \n</string>
     <string name="NoRecordsFound">No Records Found</string>
+    <string name="testBackgroundText">Test Background Work</string>
 </resources>

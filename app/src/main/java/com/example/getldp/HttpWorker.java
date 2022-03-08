@@ -5,6 +5,7 @@ import android.annotation.SuppressLint;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -76,6 +77,7 @@ public class HttpWorker extends Worker {
         requestQueue = Volley.newRequestQueue(context);
         LocationManager locationManager = (LocationManager) context.getSystemService(Context.LOCATION_SERVICE);
 
+
         if (Looper.myLooper() == null)
             Looper.prepare(); //Looper is used internally in LocationManager.requestLocationUpdates (has a handler with messages in it)
         if (!checkPermissions()) {
@@ -84,6 +86,7 @@ public class HttpWorker extends Worker {
         while (!checkPermissions()) {
             Thread.yield();
         }
+        requestOrRefreshUriPermissions();
         locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 900_000L, // 900000 == 15 min, so this location is at most 15 min old
                 10.0f, location -> {
                     realLocation = location;
@@ -109,6 +112,7 @@ public class HttpWorker extends Worker {
     @NonNull
     @Override
     public Worker.Result doWork() {
+        requestOrRefreshUriPermissions();
         if (!checkPermissions()) {
             return Result.retry();
         }
@@ -132,14 +136,14 @@ public class HttpWorker extends Worker {
     private Result consumeProviderAndPost() {
         LocEntity perturbedLocEntity = new LocEntity();
         //start real location fetch because part of it will run in the background
-        Cursor cursor = getApplicationContext().getContentResolver().query(PERSONAL_CONTENT_URI, null, null, null, null);
         try {
+            Cursor cursor = getApplicationContext().getContentResolver().query(PERSONAL_CONTENT_URI, null, null, null, null);
             //send 2 POST request every 15 min
             if (cursor.moveToFirst()) {
-                perturbedLocEntity.setEpoch(System.currentTimeMillis());
+                perturbedLocEntity.setEpoch(cursor.getColumnIndex("timestamp"));
+                perturbedLocEntity.setRadius(cursor.getColumnIndex("radius"));
                 perturbedLocEntity.setExact(false);
-//        perturbedLocEntity.setUserId();
-                perturbedLocEntity.setUserId(userId); //placeholder value, delete this when uID fixed
+                perturbedLocEntity.setUserId(userId);
                 perturbedLocEntity.setLatitude(cursor.getDouble(cursor.getColumnIndex("latitude")));
                 perturbedLocEntity.setLongitude(cursor.getDouble(cursor.getColumnIndex("longitude")));
                 cursor.close();
@@ -149,7 +153,7 @@ public class HttpWorker extends Worker {
                 Log.e("Provider_access", "no record found in provider URI");
             }
         } catch (Throwable throwable) {
-            //TODO: which exception when URIpermissions not given?
+            //TODO: which exception when URIpermissions not given? A: it's a NullPointerException
             notifyUriAccessProblem();
         }
         return null;
@@ -190,9 +194,10 @@ public class HttpWorker extends Worker {
             notificationText = "GETLDP does not have location access settings in LOCLDP provider. Go to the app to change your preferences";
             Intent intent = new Intent();
             intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-            intent.setPackage("com.example.locldp2");
-            intent.setAction(Intent.ACTION_MAIN);
+            intent.setAction("android.intent.action.MAIN");
             intent.addCategory(Intent.CATEGORY_LAUNCHER);
+            intent.setComponent(
+                    new ComponentName("com.example.locldp2", "com.example.locldp2.MainActivity"));
             PendingIntent pendingIntent = PendingIntent.getActivity(getApplicationContext(), 0, intent, 0); //don't understand flags.
             notificationBuilder.setContentText(notificationText)
                     .setContentIntent(pendingIntent);
@@ -241,5 +246,15 @@ public class HttpWorker extends Worker {
         // or other notification behaviors after this
         NotificationManager notificationManager = getApplicationContext().getSystemService(NotificationManager.class);
         notificationManager.createNotificationChannel(channel);
+    }
+
+    private void requestOrRefreshUriPermissions(){
+        final Intent uriReqIntent=new Intent();
+        uriReqIntent.setAction("com.ldp.package.uri");
+        uriReqIntent.setPackage(getApplicationContext().getPackageName());
+        uriReqIntent.addFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES);
+        uriReqIntent.setComponent(
+                new ComponentName("com.example.locldp2","com.example.locldp2.UriRequestReceiver"));
+        getApplicationContext().sendBroadcast(uriReqIntent);
     }
 }
