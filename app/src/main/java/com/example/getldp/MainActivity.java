@@ -19,6 +19,9 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 public class MainActivity extends AppCompatActivity {
 
     static final String provider_auth_uri = "com.ldp.provider";
@@ -36,7 +39,7 @@ public class MainActivity extends AppCompatActivity {
         PACKAGE_NAME = getApplicationContext().getPackageName();
         // main code branch proceeds in onrequestpermissionsresult()
     }
-
+    
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         if (requestCode == FINE_REQUEST_CODE) {
@@ -110,5 +113,13 @@ public class MainActivity extends AppCompatActivity {
         intent.setComponent(
                 new ComponentName("com.example.locldp2","com.example.locldp2.UriRequestReceiver"));
         sendBroadcast(intent);
+
+        //test for consuming the provider uri:
+        try {
+            Uri appSpecificUri = Uri.parse("content://" + provider_auth_uri + "/locations/"+getPackageName());
+
+        }catch (Exception e){
+            Log.d("RequestingUri: ", e.getMessage());
+        }
     }
 }

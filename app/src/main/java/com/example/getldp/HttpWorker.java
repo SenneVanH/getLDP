@@ -12,18 +12,18 @@ import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.location.Location;
 import android.location.LocationManager;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Looper;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.core.app.ActivityCompat;
 import androidx.core.app.NotificationCompat;
 import androidx.core.app.NotificationManagerCompat;
 import androidx.work.BackoffPolicy;
 import androidx.work.ExistingPeriodicWorkPolicy;
-import androidx.work.ExistingWorkPolicy;
-import androidx.work.OneTimeWorkRequest;
 import androidx.work.PeriodicWorkRequest;
 import androidx.work.WorkManager;
 import androidx.work.WorkRequest;
@@ -46,6 +46,7 @@ import java.util.concurrent.TimeUnit;
  * credit to https://stackoverflow.com/questions/53043183/how-to-register-a-periodic-work-request-with-workmanger-system-wide-once-i-e-a/53507670#53507670
  */
 public class HttpWorker extends Worker {
+    private static Uri PERSONAL_CONTENT_URI;
     private static final String instantUniqueWorkName = "com.example.getldp.HttpWorker.instant";
     private static final String uniqueWorkName = "com.example.getldp.HttpWorker";
     private static final String postURL = "https://first-spring-app-locldp.azuremicroservices.io/db/addjson";
@@ -62,6 +63,7 @@ public class HttpWorker extends Worker {
     //permissions are checked in checkPermissions() but linter does not detect
     public HttpWorker(@NonNull Context context, @NonNull WorkerParameters params) {
         super(context, params);
+        PERSONAL_CONTENT_URI = Uri.parse("content://" + MainActivity.provider_auth_uri + "/locations/" + getApplicationContext().getPackageName());
         sharedpreferences = getApplicationContext().getSharedPreferences(MyPREFERENCES, Context.MODE_PRIVATE);
         userId = sharedpreferences.getLong("userId", 0L);
         while (userId == 0L) {
@@ -77,7 +79,7 @@ public class HttpWorker extends Worker {
         if (Looper.myLooper() == null)
             Looper.prepare(); //Looper is used internally in LocationManager.requestLocationUpdates (has a handler with messages in it)
         if (!checkPermissions()) {
-            myNotificationMaker();
+            notifyNoBackgroundPermissions();
         }
         while (!checkPermissions()) {
             Thread.yield();
@@ -103,31 +105,17 @@ public class HttpWorker extends Worker {
         WorkManager.getInstance(ctx).enqueueUniquePeriodicWork(uniqueWorkName, ExistingPeriodicWorkPolicy.KEEP, getOwnWorkRequest());
     }
 
-    @SuppressLint({"Range", "MissingPermission"})
+    @SuppressLint({"MissingPermission"})
     @NonNull
     @Override
     public Worker.Result doWork() {
         if (!checkPermissions()) {
             return Result.retry();
         }
-        LocEntity perturbedLocEntity = new LocEntity();
         LocEntity realLocEntity = new LocEntity();
-        //start real location fetch because part of it will run in the background
-        Cursor cursor = getApplicationContext().getContentResolver().query(MainActivity.CONTENT_URI, null, null, null, null);
-        //send 2 POST request every 15 min
-        if (cursor.moveToFirst()) {
-            perturbedLocEntity.setEpoch(System.currentTimeMillis());
-            perturbedLocEntity.setExact(false);
-//        perturbedLocEntity.setUserId();
-            perturbedLocEntity.setUserId(userId); //placeholder value, delete this when uID fixed
-            perturbedLocEntity.setLatitude(cursor.getDouble(cursor.getColumnIndex("latitude")));
-            perturbedLocEntity.setLongitude(cursor.getDouble(cursor.getColumnIndex("longitude")));
-            cursor.close();
-            if (!doPostRequestForResult(perturbedLocEntity)) return Result.retry();
-        } else {
-            cursor.close();
-            Log.e("Provider_access", "no record found in provider URI");
-        }
+        //perturbed send
+        Result retry = consumeProviderAndPost();
+        if (retry != null) return retry;
         //now sending real location
         realLocEntity.setEpoch(System.currentTimeMillis());
         realLocEntity.setExact(true);
@@ -139,7 +127,35 @@ public class HttpWorker extends Worker {
         return Result.retry();
     }
 
-    private void myNotificationMaker() {
+    @SuppressLint("Range")
+    @Nullable
+    private Result consumeProviderAndPost() {
+        LocEntity perturbedLocEntity = new LocEntity();
+        //start real location fetch because part of it will run in the background
+        Cursor cursor = getApplicationContext().getContentResolver().query(PERSONAL_CONTENT_URI, null, null, null, null);
+        try {
+            //send 2 POST request every 15 min
+            if (cursor.moveToFirst()) {
+                perturbedLocEntity.setEpoch(System.currentTimeMillis());
+                perturbedLocEntity.setExact(false);
+//        perturbedLocEntity.setUserId();
+                perturbedLocEntity.setUserId(userId); //placeholder value, delete this when uID fixed
+                perturbedLocEntity.setLatitude(cursor.getDouble(cursor.getColumnIndex("latitude")));
+                perturbedLocEntity.setLongitude(cursor.getDouble(cursor.getColumnIndex("longitude")));
+                cursor.close();
+                if (!doPostRequestForResult(perturbedLocEntity)) return Result.retry();
+            } else {
+                cursor.close();
+                Log.e("Provider_access", "no record found in provider URI");
+            }
+        } catch (Throwable throwable) {
+            //TODO: which exception when URIpermissions not given?
+            notifyUriAccessProblem();
+        }
+        return null;
+    }
+
+    private void notifyNoBackgroundPermissions() {
         Intent intent = new Intent(getApplicationContext(), MainActivity.class);
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         PendingIntent pendingIntent = PendingIntent.getActivity(getApplicationContext(), 0, intent, 0); //don't understand flags.
@@ -153,6 +169,37 @@ public class HttpWorker extends Worker {
                 .setPriority(NotificationCompat.PRIORITY_DEFAULT)
                 .setAutoCancel(true)
                 .setContentIntent(pendingIntent);
+        NotificationManagerCompat notificationManager =
+                NotificationManagerCompat.from(getApplicationContext());
+        notificationManager.notify(1999, notificationBuilder.build());
+    }
+
+    private void notifyUriAccessProblem() {
+        NotificationCompat.Builder notificationBuilder = new NotificationCompat.Builder(getApplicationContext(), CHANNEL_ID)
+                .setSmallIcon(R.drawable.ic_launcher_foreground)
+                .setContentTitle("Provider permissions needed")
+//            .setStyle(new NotificationCompat.BigTextStyle()
+//                    .bigText("Much longer text that cannot fit one line..."))
+                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                .setAutoCancel(true);
+        PackageManager packageManager = getApplicationContext().getPackageManager();
+        String notificationText;
+
+        try {
+            packageManager.getPackageInfo("com.example.locldp2", PackageManager.GET_ACTIVITIES);
+            notificationText = "GETLDP does not have location access settings in LOCLDP provider. Go to the app to change your preferences";
+            Intent intent = new Intent();
+            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+            intent.setPackage("com.example.locldp2");
+            intent.setAction(Intent.ACTION_MAIN);
+            intent.addCategory(Intent.CATEGORY_LAUNCHER);
+            PendingIntent pendingIntent = PendingIntent.getActivity(getApplicationContext(), 0, intent, 0); //don't understand flags.
+            notificationBuilder.setContentText(notificationText)
+                    .setContentIntent(pendingIntent);
+        } catch (PackageManager.NameNotFoundException e) {
+            notificationText = "The companion app locldp2 is not installed";
+            notificationBuilder.setContentText(notificationText);
+        }
         NotificationManagerCompat notificationManager =
                 NotificationManagerCompat.from(getApplicationContext());
         notificationManager.notify(1999, notificationBuilder.build());
