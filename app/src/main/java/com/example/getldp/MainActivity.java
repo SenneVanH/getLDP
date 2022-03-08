@@ -83,7 +83,8 @@ public class MainActivity extends AppCompatActivity {
         TextView resultView = (TextView) findViewById(R.id.res);
         // creating a cursor object of the
         // content URI
-        Cursor cursor = getContentResolver().query(CONTENT_URI, null, null, null, null);
+        
+        Cursor cursor = getContentResolver().query(Uri.parse(CONTENT_URI + "/" + getPackageName()), null, null, null, null);
 
         // iteration of the cursor
         // to print whole table
