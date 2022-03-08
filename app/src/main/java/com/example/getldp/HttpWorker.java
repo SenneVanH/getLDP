@@ -63,7 +63,7 @@ public class HttpWorker extends Worker {
     //permissions are checked in checkPermissions() but linter does not detect
     public HttpWorker(@NonNull Context context, @NonNull WorkerParameters params) {
         super(context, params);
-        PERSONAL_CONTENT_URI = Uri.parse("content://" + MainActivity.provider_auth_uri + "/locations" + getApplicationContext().getPackageName());
+        PERSONAL_CONTENT_URI = Uri.parse("content://" + MainActivity.provider_auth_uri + "/locations/" + getApplicationContext().getPackageName());
         sharedpreferences = getApplicationContext().getSharedPreferences(MyPREFERENCES, Context.MODE_PRIVATE);
         userId = sharedpreferences.getLong("userId", 0L);
         while (userId == 0L) {

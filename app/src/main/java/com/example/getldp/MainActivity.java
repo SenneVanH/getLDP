@@ -115,7 +115,7 @@ public class MainActivity extends AppCompatActivity {
 
         //test for consuming the provider uri:
         try {
-            Uri appSpecificUri = Uri.parse("content://" + provider_auth_uri + "/locations"+getPackageName());
+            Uri appSpecificUri = Uri.parse("content://" + provider_auth_uri + "/locations/"+getPackageName());
 
         }catch (Exception e){
             Log.d("RequestingUri: ", e.getMessage());
