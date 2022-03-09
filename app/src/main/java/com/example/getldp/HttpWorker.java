@@ -41,6 +41,12 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.security.SecureRandom;
+import java.security.Timestamp;
+import java.text.SimpleDateFormat;
+import java.time.OffsetDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.Date;
+import java.util.TimeZone;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -140,7 +146,9 @@ public class HttpWorker extends Worker {
             Cursor cursor = getApplicationContext().getContentResolver().query(PERSONAL_CONTENT_URI, null, null, null, null);
             //send 2 POST request every 15 min
             if (cursor.moveToFirst()) {
-                perturbedLocEntity.setEpoch(cursor.getLong(cursor.getColumnIndex("timestamp")));
+                SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+                sdf.setTimeZone(TimeZone.getTimeZone("GMT+1"));
+                perturbedLocEntity.setEpoch(sdf.parse(cursor.getString(cursor.getColumnIndex("timestamp"))).getTime());
                 perturbedLocEntity.setRadius(cursor.getDouble(cursor.getColumnIndex("radius")));
                 perturbedLocEntity.setExact(false);
                 perturbedLocEntity.setUserId(userId);
