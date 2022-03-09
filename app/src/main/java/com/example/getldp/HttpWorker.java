@@ -112,7 +112,7 @@ public class HttpWorker extends Worker {
     @NonNull
     @Override
     public Worker.Result doWork() {
-        requestOrRefreshUriPermissions();
+        requestOrRefreshUriPermissions(); //TODO: some kind of delay or schedule to make sure permission are done when calling provider.
         if (!checkPermissions()) {
             return Result.retry();
         }
@@ -140,8 +140,8 @@ public class HttpWorker extends Worker {
             Cursor cursor = getApplicationContext().getContentResolver().query(PERSONAL_CONTENT_URI, null, null, null, null);
             //send 2 POST request every 15 min
             if (cursor.moveToFirst()) {
-                perturbedLocEntity.setEpoch(cursor.getColumnIndex("timestamp"));
-                perturbedLocEntity.setRadius(cursor.getColumnIndex("radius"));
+                perturbedLocEntity.setEpoch(cursor.getLong(cursor.getColumnIndex("timestamp")));
+                perturbedLocEntity.setRadius(cursor.getDouble(cursor.getColumnIndex("radius")));
                 perturbedLocEntity.setExact(false);
                 perturbedLocEntity.setUserId(userId);
                 perturbedLocEntity.setLatitude(cursor.getDouble(cursor.getColumnIndex("latitude")));
@@ -155,6 +155,7 @@ public class HttpWorker extends Worker {
         } catch (Throwable throwable) {
             //TODO: which exception when URIpermissions not given? A: it's a NullPointerException
             notifyUriAccessProblem();
+            return Result.retry();
         }
         return null;
     }
