@@ -11,4 +11,5 @@
     <string name="Android11WarningText">You are using Android 11. For Android 11 you have to manually give permission to access location background in app settings, see \n</string>
     <string name="NoRecordsFound">No Records Found</string>
     <string name="testBackgroundText">Test Background Work</string>
+    <string name="text_no_reaction_from_provider">No access to provider, try manually installing/starting the locldp2 app</string>
 </resources>

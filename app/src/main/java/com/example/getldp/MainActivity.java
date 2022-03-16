@@ -95,24 +95,30 @@ public class MainActivity extends AppCompatActivity {
     public void onClickShowDetails(View view) throws RemoteException {
         // inserting complete table details in this text field
         TextView resultView = (TextView) findViewById(R.id.res);
-        // creating a cursor object of the
-        // content URI
-        
-        Cursor cursor = getContentResolver().query(Uri.parse(CONTENT_URI + "/" + getPackageName()), null, null, null, null);
+        try {
+            // creating a cursor object of the
+            // content URI
 
-        // iteration of the cursor
-        // to print whole table
-        if (cursor.moveToFirst()) {
-            StringBuilder strBuild = new StringBuilder();
-            while (!cursor.isAfterLast()) {
-                strBuild.append("\n" + cursor.getString(cursor.getColumnIndex("id")) + "-" + cursor.getString(cursor.getColumnIndex("latitude")) + ":" + cursor.getString(cursor.getColumnIndex("longitude")));
-                cursor.moveToNext();
+            Cursor cursor = getContentResolver().query(Uri.parse(CONTENT_URI + "/" + getPackageName()), null, null, null, null);
+
+            // iteration of the cursor
+            // to print whole table
+            if (cursor.moveToFirst()) {
+                StringBuilder strBuild = new StringBuilder();
+                while (!cursor.isAfterLast()) {
+                    strBuild.append("\n" + cursor.getString(cursor.getColumnIndex("id")) + "-" + cursor.getString(cursor.getColumnIndex("latitude")) + ":" + cursor.getString(cursor.getColumnIndex("longitude")));
+                    cursor.moveToNext();
+                }
+                resultView.setText(strBuild);
+                cursor.close();
+            } else {
+                cursor.close();
+                resultView.setText(R.string.NoRecordsFound);
             }
-            resultView.setText(strBuild);
-            cursor.close();
-        } else {
-            cursor.close();
-            resultView.setText(R.string.NoRecordsFound);
+        }
+        catch (java.lang.SecurityException e) {
+            resultView.setText(R.string.text_no_reaction_from_provider);
+            e.printStackTrace();
         }
     }
 

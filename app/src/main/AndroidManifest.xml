@@ -24,7 +24,7 @@
             </intent-filter>
         </activity>
         <receiver
-            android:name=".BootOrUpdateCompleteReceiver"
+            android:name=".GetldpBootOrUpdateCompleteReceiver"
             android:enabled="true"
             android:exported="true">
             <intent-filter>

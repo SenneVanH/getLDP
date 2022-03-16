@@ -69,7 +69,8 @@
             android:textAppearance="@style/TextAppearance.AppCompat.Display1"
             android:textColor="#FFFFFF"
             android:textStyle="bold"
-            android:enabled="false"/>
+            android:enabled="true"
+            />
 
         <Button
             android:id="@+id/uriButton"
