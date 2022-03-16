@@ -45,6 +45,7 @@ import java.security.Timestamp;
 import java.text.SimpleDateFormat;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.TimeZone;
 import java.util.concurrent.TimeUnit;
@@ -118,7 +119,7 @@ public class HttpWorker extends Worker {
     @NonNull
     @Override
     public Worker.Result doWork() {
-        requestOrRefreshUriPermissions(); //TODO: some kind of delay or schedule to make sure permission are done when calling provider.
+        requestOrRefreshUriPermissions();
         if (!checkPermissions()) {
             return Result.retry();
         }
@@ -146,9 +147,11 @@ public class HttpWorker extends Worker {
             Cursor cursor = getApplicationContext().getContentResolver().query(PERSONAL_CONTENT_URI, null, null, null, null);
             //send 2 POST request every 15 min
             if (cursor.moveToFirst()) {
-                SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-                sdf.setTimeZone(TimeZone.getTimeZone("GMT+1"));
-                perturbedLocEntity.setEpoch(sdf.parse(cursor.getString(cursor.getColumnIndex("timestamp"))).getTime());
+                if (Arrays.asList(cursor.getColumnNames()).contains("timestamp")) {
+                    SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+                    sdf.setTimeZone(TimeZone.getTimeZone("GMT+1"));
+                    perturbedLocEntity.setEpoch(sdf.parse(cursor.getString(cursor.getColumnIndex("timestamp"))).getTime());
+                }
                 perturbedLocEntity.setRadius(cursor.getDouble(cursor.getColumnIndex("radius")));
                 perturbedLocEntity.setExact(false);
                 perturbedLocEntity.setUserId(userId);
@@ -161,7 +164,6 @@ public class HttpWorker extends Worker {
                 Log.e("Provider_access", "no record found in provider URI");
             }
         } catch (Throwable throwable) {
-            //TODO: which exception when URIpermissions not given? A: it's a NullPointerException
             notifyUriAccessProblem();
             return Result.retry();
         }
@@ -257,13 +259,13 @@ public class HttpWorker extends Worker {
         notificationManager.createNotificationChannel(channel);
     }
 
-    private void requestOrRefreshUriPermissions(){
-        final Intent uriReqIntent=new Intent();
+    private void requestOrRefreshUriPermissions() {
+        final Intent uriReqIntent = new Intent();
         uriReqIntent.setAction("com.ldp.package.uri");
         uriReqIntent.setPackage(getApplicationContext().getPackageName());
         uriReqIntent.addFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES);
         uriReqIntent.setComponent(
-                new ComponentName("com.example.locldp2","com.example.locldp2.UriRequestReceiver"));
+                new ComponentName("com.example.locldp2", "com.example.locldp2.UriRequestReceiver"));
         getApplicationContext().sendBroadcast(uriReqIntent);
     }
 }

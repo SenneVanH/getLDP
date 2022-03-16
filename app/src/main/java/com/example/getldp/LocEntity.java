@@ -1,12 +1,15 @@
 package com.example.getldp;
 
 
+import androidx.annotation.Nullable;
+
 public class LocEntity {
     private long userId;
     private double longitude;
     private double latitude;
     private boolean exact; //if exact is true, this means no noise has been added to it.
-    private long epoch; //milliseconds since epoch. System.currentTimeMillis() should be used in client
+    @Nullable
+    private Long epoch; //milliseconds since epoch. System.currentTimeMillis() should be used in client
     private double radius = 0; //measure of the accuracy of the perturbed location
 
     public double getRadius() {
