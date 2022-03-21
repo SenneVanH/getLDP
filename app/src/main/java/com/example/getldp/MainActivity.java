@@ -50,7 +50,7 @@ public class MainActivity extends AppCompatActivity {
         PACKAGE_NAME = getApplicationContext().getPackageName();
         // main code branch proceeds in onrequestpermissionsresult()
     }
-    
+
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         if (requestCode == FINE_REQUEST_CODE) {

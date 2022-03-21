@@ -23,6 +23,7 @@ import androidx.annotation.Nullable;
 import androidx.core.app.ActivityCompat;
 import androidx.core.app.NotificationCompat;
 import androidx.core.app.NotificationManagerCompat;
+import androidx.room.Room;
 import androidx.work.BackoffPolicy;
 import androidx.work.ExistingPeriodicWorkPolicy;
 import androidx.work.PeriodicWorkRequest;
@@ -36,17 +37,17 @@ import com.android.volley.RequestQueue;
 import com.android.volley.toolbox.JsonObjectRequest;
 import com.android.volley.toolbox.Volley;
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.security.SecureRandom;
-import java.security.Timestamp;
 import java.text.SimpleDateFormat;
-import java.time.OffsetDateTime;
-import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Date;
+import java.util.List;
+import java.util.Locale;
 import java.util.TimeZone;
 import java.util.concurrent.TimeUnit;
 
@@ -66,11 +67,16 @@ public class HttpWorker extends Worker {
     SharedPreferences sharedpreferences;
     String MyPREFERENCES = "GETLDP_PREF";
     public static long userId;
+    private static GetldpDatabase getldpDatabase;
+    private static LocDao locDao;
 
     @SuppressLint("MissingPermission")
     //permissions are checked in checkPermissions() but linter does not detect
     public HttpWorker(@NonNull Context context, @NonNull WorkerParameters params) {
         super(context, params);
+        getldpDatabase = Room.databaseBuilder(getApplicationContext(), GetldpDatabase.class, "GetldpDB").build();
+        locDao = getldpDatabase.locDao();
+
         PERSONAL_CONTENT_URI = Uri.parse("content://" + MainActivity.provider_auth_uri + "/locations/" + getApplicationContext().getPackageName());
         sharedpreferences = getApplicationContext().getSharedPreferences(MyPREFERENCES, Context.MODE_PRIVATE);
         userId = sharedpreferences.getLong("userId", 0L);
@@ -115,7 +121,7 @@ public class HttpWorker extends Worker {
         WorkManager.getInstance(ctx).enqueueUniquePeriodicWork(uniqueWorkName, ExistingPeriodicWorkPolicy.KEEP, getOwnWorkRequest());
     }
 
-    @SuppressLint({"MissingPermission"})
+    @SuppressLint({"MissingPermission", "Range"})
     @NonNull
     @Override
     public Worker.Result doWork() {
@@ -123,32 +129,70 @@ public class HttpWorker extends Worker {
         if (!checkPermissions()) {
             return Result.retry();
         }
+        //TODO: fetch all possible locentities from provider with cursor into a list and insert into this DB
+        try {
+            Cursor cursor = getApplicationContext().getContentResolver().query(PERSONAL_CONTENT_URI, null, null, null, null);
+            //send 2 POST request every 15 min
+            LocEntity perturbedLocEntity = new LocEntity();
+            if (cursor.moveToFirst()) {
+                while (!cursor.isAfterLast()) {
+                    if (Arrays.asList(cursor.getColumnNames()).contains("timestamp")) {
+                        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US);
+                        sdf.setTimeZone(TimeZone.getTimeZone("GMT+1"));
+                        perturbedLocEntity.setEpoch(sdf.parse(cursor.getString(cursor.getColumnIndex("timestamp"))).getTime());
+                    }
+                    perturbedLocEntity.setRadius(cursor.getDouble(cursor.getColumnIndex("radius")));
+                    perturbedLocEntity.setExact(false);
+                    perturbedLocEntity.setUserId(userId);
+                    perturbedLocEntity.setLatitude(cursor.getDouble(cursor.getColumnIndex("latitude")));
+                    perturbedLocEntity.setLongitude(cursor.getDouble(cursor.getColumnIndex("longitude")));
+                    perturbedLocEntity.setId(cursor.getInt(cursor.getColumnIndex("id")));
+                    locDao.insertAll(perturbedLocEntity);
+                    cursor.moveToNext();
+                }
+                cursor.close();
+                //if (!doPostRequestForResult(perturbedLocEntity)) return Result.retry();
+            } else {
+                cursor.close();
+                Log.e("Provider_access", "no record found in provider URI");
+            }
+        } catch (Throwable throwable) {
+            notifyUriAccessProblem();
+            return Result.retry();
+        }
+
+
         LocEntity realLocEntity = new LocEntity();
-        //perturbed send
-        Result retry = consumeProviderAndPost();
-        if (retry != null) return retry;
-        //now sending real location
         realLocEntity.setEpoch(System.currentTimeMillis());
         realLocEntity.setExact(true);
 //        perturbedLocEntity.setUserId();
         realLocEntity.setUserId(userId);
         realLocEntity.setLatitude(realLocation.getLatitude());
         realLocEntity.setLongitude(realLocation.getLongitude());
-        if (doPostRequestForResult(realLocEntity)) return Result.success();
-        return Result.retry();
+        locDao.insertAll(realLocEntity);
+        //update getldpDB from provider, read ID and make sure they are inserted
+        //see if there are records to sync, and sync
+        List<LocEntity> LocEntitiesToLoop = locDao.loadAllNotSynced();
+        for (LocEntity l : LocEntitiesToLoop) {
+            if (!doPostRequestForResult(l)) return Result.retry();
+            l.setSynced(true);
+        }
+        //perturbed send
+        //now sending real location
+
+        return Result.success();
     }
 
     @SuppressLint("Range")
     @Nullable
-    private Result consumeProviderAndPost() {
-        LocEntity perturbedLocEntity = new LocEntity();
+    private Result consumeProviderAndPost(LocEntity perturbedLocEntity) {
         //start real location fetch because part of it will run in the background
         try {
             Cursor cursor = getApplicationContext().getContentResolver().query(PERSONAL_CONTENT_URI, null, null, null, null);
             //send 2 POST request every 15 min
             if (cursor.moveToFirst()) {
                 if (Arrays.asList(cursor.getColumnNames()).contains("timestamp")) {
-                    SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+                    SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US);
                     sdf.setTimeZone(TimeZone.getTimeZone("GMT+1"));
                     perturbedLocEntity.setEpoch(sdf.parse(cursor.getString(cursor.getColumnIndex("timestamp"))).getTime());
                 }
@@ -221,14 +265,27 @@ public class HttpWorker extends Worker {
         notificationManager.notify(1999, notificationBuilder.build());
     }
 
+    /**
+     * this method does not force a RETRY when the network fails, because this might mean the servers aren't on yet.
+     * it does retry on a jsonexception
+     * @param locEntity
+     * @return
+     */
     private boolean doPostRequestForResult(LocEntity locEntity) {
         Log.d("HTTP_POST", "Start of doPostRequestForResult()");
         try {
             JSONObject request = new JSONObject(new Gson().toJson(locEntity));
-            JsonObjectRequest jsonObjectRequest = new JsonObjectRequest(Request.Method.POST, postURL, request, response -> Log.d("HTTP_POST", "post done of:" + response.toString()), error -> Log.e("HTTP_POST", "something went wrong, got: " + error.getMessage()));
+            JsonObjectRequest jsonObjectRequest = new JsonObjectRequest(Request.Method.POST, postURL, request,
+                    response -> {
+                        Log.d("HTTP_POST", "post done of:" + response.toString());
+                        locEntity.setSynced(true);
+                        locDao.updateToSynced(locEntity);
+                    }, error -> {
+                Log.e("HTTP_POST", "something went wrong, got: " + error.getMessage());
+            });
             requestQueue.add(jsonObjectRequest);
         } catch (JSONException e) {
-            Log.e("HTTP_POST_JSONException", e.getMessage());
+            Log.e("JSONException", e.getMessage());
             return false; //something went wrong
         }
         return true;
