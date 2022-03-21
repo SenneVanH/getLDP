@@ -175,7 +175,6 @@ public class HttpWorker extends Worker {
         List<LocEntity> LocEntitiesToLoop = locDao.loadAllNotSynced();
         for (LocEntity l : LocEntitiesToLoop) {
             if (!doPostRequestForResult(l)) return Result.retry();
-            l.setSynced(true);
         }
         //perturbed send
         //now sending real location
