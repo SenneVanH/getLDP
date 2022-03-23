@@ -69,18 +69,19 @@ public class HttpWorker extends Worker {
     public static long userId;
     private static GetldpDatabase getldpDatabase;
     private static LocDao locDao;
+    private static Context worker_context;
 
     @SuppressLint("MissingPermission")
     //permissions are checked in checkPermissions() but linter does not detect
     public HttpWorker(@NonNull Context context, @NonNull WorkerParameters params) {
         super(context, params);
-        //@Senne ge gaat wrs ook efkes moeten migraten
-        getldpDatabase = Room.databaseBuilder(getApplicationContext(), GetldpDatabase.class, "GetldpDB")
+        worker_context = context;
+        getldpDatabase = Room.databaseBuilder(worker_context, GetldpDatabase.class, "GetldpDB")
                 .allowMainThreadQueries().fallbackToDestructiveMigration().build();
         locDao = getldpDatabase.locDao();
 
-        PERSONAL_CONTENT_URI = Uri.parse("content://" + MainActivity.provider_auth_uri + "/locations/" + getApplicationContext().getPackageName());
-        sharedpreferences = getApplicationContext().getSharedPreferences(MyPREFERENCES, Context.MODE_PRIVATE);
+        PERSONAL_CONTENT_URI = Uri.parse("content://" + MainActivity.provider_auth_uri + "/locations/" + worker_context.getPackageName());
+        sharedpreferences = worker_context.getSharedPreferences(MyPREFERENCES, Context.MODE_PRIVATE);
         userId = sharedpreferences.getLong("userId", 0L);
         while (userId == 0L) {
             userId = new SecureRandom().nextLong();
@@ -132,7 +133,7 @@ public class HttpWorker extends Worker {
             return Result.retry();
         }
         try {
-            Cursor cursor = getApplicationContext().getContentResolver().query(PERSONAL_CONTENT_URI, null, null, null, null);
+            Cursor cursor = worker_context.getContentResolver().query(PERSONAL_CONTENT_URI, null, null, null, null);
             //send 2 POST request every 15 min
             LocEntity perturbedLocEntity = new LocEntity();
             if (cursor.moveToFirst()) {
@@ -185,11 +186,11 @@ public class HttpWorker extends Worker {
     }
 
     private void notifyNoBackgroundPermissions() {
-        Intent intent = new Intent(getApplicationContext(), MainActivity.class);
+        Intent intent = new Intent(worker_context, MainActivity.class);
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-        PendingIntent pendingIntent = PendingIntent.getActivity(getApplicationContext(), 0, intent, 0); //don't understand flags.
+        PendingIntent pendingIntent = PendingIntent.getActivity(worker_context, 0, intent, 0); //don't understand flags.
 
-        NotificationCompat.Builder notificationBuilder = new NotificationCompat.Builder(getApplicationContext(), CHANNEL_ID)
+        NotificationCompat.Builder notificationBuilder = new NotificationCompat.Builder(worker_context, CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_launcher_foreground)
                 .setContentTitle("Requesting Location")
                 .setContentText("The app GETLDP does not have the necessary permissions to access location in the background. Go to the app to change your preferences")
@@ -199,19 +200,19 @@ public class HttpWorker extends Worker {
                 .setAutoCancel(true)
                 .setContentIntent(pendingIntent);
         NotificationManagerCompat notificationManager =
-                NotificationManagerCompat.from(getApplicationContext());
+                NotificationManagerCompat.from(worker_context);
         notificationManager.notify(1999, notificationBuilder.build());
     }
 
     private void notifyUriAccessProblem() {
-        NotificationCompat.Builder notificationBuilder = new NotificationCompat.Builder(getApplicationContext(), CHANNEL_ID)
+        NotificationCompat.Builder notificationBuilder = new NotificationCompat.Builder(worker_context, CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_launcher_foreground)
                 .setContentTitle("Provider permissions needed")
 //            .setStyle(new NotificationCompat.BigTextStyle()
 //                    .bigText("Much longer text that cannot fit one line..."))
                 .setPriority(NotificationCompat.PRIORITY_DEFAULT)
                 .setAutoCancel(true);
-        PackageManager packageManager = getApplicationContext().getPackageManager();
+        PackageManager packageManager = worker_context.getPackageManager();
         String notificationText;
 
         try {
@@ -223,7 +224,7 @@ public class HttpWorker extends Worker {
             intent.addCategory(Intent.CATEGORY_LAUNCHER);
             intent.setComponent(
                     new ComponentName("com.example.locldp2", "com.example.locldp2.MainActivity"));
-            PendingIntent pendingIntent = PendingIntent.getActivity(getApplicationContext(), 0, intent, 0); //don't understand flags.
+            PendingIntent pendingIntent = PendingIntent.getActivity(worker_context, 0, intent, 0); //don't understand flags.
             notificationBuilder.setContentText(notificationText)
                     .setContentIntent(pendingIntent);
         } catch (PackageManager.NameNotFoundException e) {
@@ -231,7 +232,7 @@ public class HttpWorker extends Worker {
             notificationBuilder.setContentText(notificationText);
         }
         NotificationManagerCompat notificationManager =
-                NotificationManagerCompat.from(getApplicationContext());
+                NotificationManagerCompat.from(worker_context);
         notificationManager.notify(1999, notificationBuilder.build());
     }
 
@@ -263,10 +264,10 @@ public class HttpWorker extends Worker {
     }
 
     private boolean checkPermissions() {
-        if (ActivityCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+        if (ActivityCompat.checkSelfPermission(worker_context, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             return false;
         }
-        if (ActivityCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.ACCESS_BACKGROUND_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+        if (ActivityCompat.checkSelfPermission(worker_context, Manifest.permission.ACCESS_BACKGROUND_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             //android Q == API 29. also see https://stackoverflow.com/a/69395540/13286640
             return Build.VERSION.SDK_INT < Build.VERSION_CODES.Q;
         }
@@ -276,24 +277,24 @@ public class HttpWorker extends Worker {
     private void createNotificationChannel() {
         // Create the NotificationChannel, but only on API 26+ because
         // the NotificationChannel class is new and not in the support library
-        CharSequence name = getApplicationContext().getString(R.string.channel_name);
-        String description = getApplicationContext().getString(R.string.channel_description);
+        CharSequence name = worker_context.getString(R.string.channel_name);
+        String description = worker_context.getString(R.string.channel_description);
         int importance = NotificationManager.IMPORTANCE_DEFAULT;
         NotificationChannel channel = new NotificationChannel(CHANNEL_ID, name, importance);
         channel.setDescription(description);
         // Register the channel with the system; you can't change the importance
         // or other notification behaviors after this
-        NotificationManager notificationManager = getApplicationContext().getSystemService(NotificationManager.class);
+        NotificationManager notificationManager = worker_context.getSystemService(NotificationManager.class);
         notificationManager.createNotificationChannel(channel);
     }
 
     private void requestOrRefreshUriPermissions() {
         final Intent uriReqIntent = new Intent();
         uriReqIntent.setAction("com.ldp.package.uri");
-        uriReqIntent.setPackage(getApplicationContext().getPackageName());
+        uriReqIntent.setPackage(worker_context.getPackageName());
         uriReqIntent.addFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES);
         uriReqIntent.setComponent(
                 new ComponentName("com.example.locldp2", "com.example.locldp2.UriRequestReceiver"));
-        getApplicationContext().sendBroadcast(uriReqIntent);
+        worker_context.sendBroadcast(uriReqIntent);
     }
 }
