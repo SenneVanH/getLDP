@@ -74,7 +74,9 @@ public class HttpWorker extends Worker {
     //permissions are checked in checkPermissions() but linter does not detect
     public HttpWorker(@NonNull Context context, @NonNull WorkerParameters params) {
         super(context, params);
-        getldpDatabase = Room.databaseBuilder(getApplicationContext(), GetldpDatabase.class, "GetldpDB").build();
+        //@Senne ge gaat wrs ook efkes moeten migraten
+        getldpDatabase = Room.databaseBuilder(getApplicationContext(), GetldpDatabase.class, "GetldpDB")
+                .allowMainThreadQueries().fallbackToDestructiveMigration().build();
         locDao = getldpDatabase.locDao();
 
         PERSONAL_CONTENT_URI = Uri.parse("content://" + MainActivity.provider_auth_uri + "/locations/" + getApplicationContext().getPackageName());
@@ -129,7 +131,6 @@ public class HttpWorker extends Worker {
         if (!checkPermissions()) {
             return Result.retry();
         }
-        //TODO: fetch all possible locentities from provider with cursor into a list and insert into this DB
         try {
             Cursor cursor = getApplicationContext().getContentResolver().query(PERSONAL_CONTENT_URI, null, null, null, null);
             //send 2 POST request every 15 min
@@ -138,7 +139,7 @@ public class HttpWorker extends Worker {
                 while (!cursor.isAfterLast()) {
                     if (Arrays.asList(cursor.getColumnNames()).contains("timestamp")) {
                         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US);
-                        sdf.setTimeZone(TimeZone.getTimeZone("GMT+1"));
+                        sdf.setTimeZone(TimeZone.getTimeZone("GMT")); //times from provider are GMT+0 format
                         perturbedLocEntity.setEpoch(sdf.parse(cursor.getString(cursor.getColumnIndex("timestamp"))).getTime());
                     }
                     perturbedLocEntity.setRadius(cursor.getDouble(cursor.getColumnIndex("radius")));
@@ -172,45 +173,14 @@ public class HttpWorker extends Worker {
         locDao.insertAll(realLocEntity);
         //update getldpDB from provider, read ID and make sure they are inserted
         //see if there are records to sync, and sync
-        List<LocEntity> LocEntitiesToLoop = locDao.loadAllNotSynced();
-        for (LocEntity l : LocEntitiesToLoop) {
+        List<LocEntity> unsyncedLocEntities = locDao.loadAllNotSynced();
+        for (LocEntity l : unsyncedLocEntities) {
             if (!doPostRequestForResult(l)) return Result.retry();
         }
         //perturbed send
         //now sending real location
 
         return Result.success();
-    }
-
-    @SuppressLint("Range")
-    @Nullable
-    private Result consumeProviderAndPost(LocEntity perturbedLocEntity) {
-        //start real location fetch because part of it will run in the background
-        try {
-            Cursor cursor = getApplicationContext().getContentResolver().query(PERSONAL_CONTENT_URI, null, null, null, null);
-            //send 2 POST request every 15 min
-            if (cursor.moveToFirst()) {
-                if (Arrays.asList(cursor.getColumnNames()).contains("timestamp")) {
-                    SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US);
-                    sdf.setTimeZone(TimeZone.getTimeZone("GMT+1"));
-                    perturbedLocEntity.setEpoch(sdf.parse(cursor.getString(cursor.getColumnIndex("timestamp"))).getTime());
-                }
-                perturbedLocEntity.setRadius(cursor.getDouble(cursor.getColumnIndex("radius")));
-                perturbedLocEntity.setExact(false);
-                perturbedLocEntity.setUserId(userId);
-                perturbedLocEntity.setLatitude(cursor.getDouble(cursor.getColumnIndex("latitude")));
-                perturbedLocEntity.setLongitude(cursor.getDouble(cursor.getColumnIndex("longitude")));
-                cursor.close();
-                if (!doPostRequestForResult(perturbedLocEntity)) return Result.retry();
-            } else {
-                cursor.close();
-                Log.e("Provider_access", "no record found in provider URI");
-            }
-        } catch (Throwable throwable) {
-            notifyUriAccessProblem();
-            return Result.retry();
-        }
-        return null;
     }
 
     private void notifyNoBackgroundPermissions() {

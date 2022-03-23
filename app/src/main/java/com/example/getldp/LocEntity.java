@@ -9,7 +9,7 @@ import com.google.gson.annotations.Expose;
 
 @Entity
 public class LocEntity {
-    @PrimaryKey
+    @PrimaryKey(autoGenerate = true)
     private long id;
     @Expose //@Expose marks it as to include in the Gson serialisation
     private long userId;
@@ -20,8 +20,7 @@ public class LocEntity {
     @Expose
     private boolean exact; //if exact is true, this means no noise has been added to it.
     @Expose
-    @Nullable
-    private Long epoch; //milliseconds since epoch. System.currentTimeMillis() should be used in client
+    private long epoch = 0; //milliseconds since epoch. System.currentTimeMillis() should be used in client
     @Expose
     private double radius = 0; //measure of the accuracy of the perturbed location
     private boolean synced = false;
