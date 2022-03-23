@@ -9,6 +9,8 @@ import com.google.gson.annotations.Expose;
 
 @Entity
 public class LocEntity {
+    // If the field type is long or int (or its TypeConverter converts it to a long or int), Insert methods treat 0 as not-set while inserting the item.
+    // If the field's type is Integer or Long (or its TypeConverter converts it to an Integer or a Long), Insert methods treat null as not-set while inserting the item.
     @PrimaryKey(autoGenerate = true)
     private long id;
     @Expose //@Expose marks it as to include in the Gson serialisation
