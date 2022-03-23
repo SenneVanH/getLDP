@@ -246,7 +246,16 @@ public class HttpWorker extends Worker {
     private boolean doPostRequestForResult(LocEntity locEntity) {
         Log.d("HTTP_POST", "Start of doPostRequestForResult()");
         try {
-            JSONObject request = new JSONObject(new Gson().toJson(locEntity));
+            LocEntity locEntityCopy = new LocEntity();
+            locEntityCopy.setEpoch(locEntity.getEpoch());
+            locEntityCopy.setExact(locEntity.isExact());
+            locEntityCopy.setUserId(locEntity.getUserId());
+            locEntityCopy.setLatitude(locEntity.getLatitude());
+            locEntityCopy.setLongitude(locEntity.getLongitude());
+            locEntityCopy.setRadius(locEntity.getRadius());
+            locEntityCopy.setId(0);
+
+            JSONObject request = new JSONObject(new Gson().toJson(locEntityCopy));
             JsonObjectRequest jsonObjectRequest = new JsonObjectRequest(Request.Method.POST, postURL, request,
                     response -> {
                         Log.d("HTTP_POST", "post done of:" + response.toString());
