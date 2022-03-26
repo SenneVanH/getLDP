@@ -43,6 +43,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.security.SecureRandom;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -166,6 +167,8 @@ public class HttpWorker extends Worker {
             // this most likely means provider table is still empty at first app lauch.
             Log.d("NullPointerException in getldp around cursor query: ", "This probably means that there are no records yet in the provider table of locldp");
             //don't retry, wait untill next queue moment because provider table will probably have records by then
+        } catch (ParseException e) {
+            Log.d("parse exepction from provider entry", Log.getStackTraceString(e));
         }
 
 
