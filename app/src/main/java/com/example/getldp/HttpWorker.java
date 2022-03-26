@@ -159,9 +159,13 @@ public class HttpWorker extends Worker {
                 cursor.close();
                 Log.e("Provider_access", "no record found in provider URI");
             }
-        } catch (Throwable throwable) {
-            notifyUriAccessProblem();
+        } catch (SecurityException se) {
+            notifyUriAccessProblem(); //this let's the user know when they haven't installed locldp2 app
             return Result.retry();
+        } catch (NullPointerException ne) {
+            // this most likely means provider table is still empty at first app lauch.
+            Log.d("NullPointerException in getldp around cursor query: ", "This probably means that there are no records yet in the provider table of locldp");
+            //don't retry, wait untill next queue moment because provider table will probably have records by then
         }
 
 

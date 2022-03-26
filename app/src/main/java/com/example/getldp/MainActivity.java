@@ -72,7 +72,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void requestPermissions() {
         if (Build.VERSION.SDK_INT < 29) {
-            if (ActivityCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.ACCESS_BACKGROUND_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            if (ActivityCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
                 ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, FINE_REQUEST_CODE);
             }
         } else if (Build.VERSION.SDK_INT == 29) { //api level 29
