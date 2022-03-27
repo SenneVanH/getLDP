@@ -1,5 +1,5 @@
 # getLDP
-This repository contains the code for an app using our LDP location provider. In the releases you can find the two downloadable APK’s, one is for the getLDP app and the other is the provider app. 
+This repository contains the code for an app using our LDP location provider. In the <a href="https://github.com/SenneVanH/getLDP/releases">releases</a> you can find the two downloadable APK’s, one is for the getLDP app and the other is the provider app. 
 
 The provider app allows you to configure how perturbated you want your location data to be, you can configure this in general and for each app. You can also create Endpoint Privacy Zones for areas where you really don’t want any app to know your location, for example you might want to hide your home address to apps. 
 
