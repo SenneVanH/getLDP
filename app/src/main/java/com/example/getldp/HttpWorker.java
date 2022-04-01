@@ -19,7 +19,6 @@ import android.os.Looper;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 import androidx.core.app.ActivityCompat;
 import androidx.core.app.NotificationCompat;
 import androidx.core.app.NotificationManagerCompat;
@@ -37,7 +36,6 @@ import com.android.volley.RequestQueue;
 import com.android.volley.toolbox.JsonObjectRequest;
 import com.android.volley.toolbox.Volley;
 import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -45,7 +43,6 @@ import org.json.JSONObject;
 import java.security.SecureRandom;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
@@ -134,6 +131,11 @@ public class HttpWorker extends Worker {
             return Result.retry();
         }
         try {
+            Thread.sleep(1000L); //wait a second to be sure the uri permissions has been granted in the provider.
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        try {
             Cursor cursor = worker_context.getContentResolver().query(PERSONAL_CONTENT_URI, null, null, null, null);
             //send 2 POST request every 15 min
             LocEntity perturbedLocEntity = new LocEntity();
@@ -161,10 +163,10 @@ public class HttpWorker extends Worker {
                 Log.e("Provider_access", "no record found in provider URI");
             }
         } catch (SecurityException se) {
-            notifyUriAccessProblem(); //this let's the user know when they haven't installed locldp2 app
-            return Result.retry();
+            return Result.retry(); //uri request timing was too fast probably.
         } catch (NullPointerException ne) {
             // this most likely means provider table is still empty at first app lauch.
+            notifyProviderAccessProblem(); //this let's the user know when they haven't installed locldp2 app
             Log.d("NullPointerException in getldp around cursor query: ", "This probably means that there are no records yet in the provider table of locldp");
             //don't retry, wait untill next queue moment because provider table will probably have records by then
         } catch (ParseException e) {
@@ -186,9 +188,6 @@ public class HttpWorker extends Worker {
         for (LocEntity l : unsyncedLocEntities) {
             if (!doPostRequestForResult(l)) return Result.retry();
         }
-        //perturbed send
-        //now sending real location
-
         return Result.success();
     }
 
@@ -211,7 +210,7 @@ public class HttpWorker extends Worker {
         notificationManager.notify(1999, notificationBuilder.build());
     }
 
-    private void notifyUriAccessProblem() {
+    private void notifyProviderAccessProblem() {
         NotificationCompat.Builder notificationBuilder = new NotificationCompat.Builder(worker_context, CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_launcher_foreground)
                 .setContentTitle("Provider permissions needed")
@@ -224,18 +223,19 @@ public class HttpWorker extends Worker {
 
         try {
             packageManager.getPackageInfo("com.example.locldp2", PackageManager.GET_ACTIVITIES);
-            notificationText = "GETLDP does not have location access settings in LOCLDP provider. Go to the app to change your preferences";
-            Intent intent = new Intent();
-            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-            intent.setAction("android.intent.action.MAIN");
-            intent.addCategory(Intent.CATEGORY_LAUNCHER);
-            intent.setComponent(
-                    new ComponentName("com.example.locldp2", "com.example.locldp2.MainActivity"));
-            PendingIntent pendingIntent = PendingIntent.getActivity(worker_context, 0, intent, 0); //don't understand flags.
-            notificationBuilder.setContentText(notificationText)
-                    .setContentIntent(pendingIntent);
+            return; //return if install is detected, no notification needed
+//            notificationText = "GETLDP does not have location access settings in LOCLDP provider. Go to the app to change your preferences";
+//            Intent intent = new Intent();
+//            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+//            intent.setAction("android.intent.action.MAIN");
+//            intent.addCategory(Intent.CATEGORY_LAUNCHER);
+//            intent.setComponent(
+//                    new ComponentName("com.example.locldp2", "com.example.locldp2.MainActivity"));
+//            PendingIntent pendingIntent = PendingIntent.getActivity(worker_context, 0, intent, 0); //don't understand flags.
+//            notificationBuilder.setContentText(notificationText)
+//                    .setContentIntent(pendingIntent);
         } catch (PackageManager.NameNotFoundException e) {
-            notificationText = "The companion app locldp2 is not installed";
+            notificationText = "The provider app locldp2 is not installed";
             notificationBuilder.setContentText(notificationText);
         }
         NotificationManagerCompat notificationManager =
