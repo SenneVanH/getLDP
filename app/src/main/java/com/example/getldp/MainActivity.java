@@ -10,14 +10,18 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.RemoteException;
+import android.text.method.ScrollingMovementMethod;
 import android.util.Log;
 import android.view.View;
+import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
+import androidx.room.Database;
+import androidx.room.Room;
 import androidx.work.OneTimeWorkRequest;
 import androidx.work.WorkManager;
 
@@ -29,6 +33,7 @@ import com.google.gson.Gson;
 
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.w3c.dom.Text;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -40,6 +45,8 @@ public class MainActivity extends AppCompatActivity {
     public static final int FINE_REQUEST_CODE = 1999;
     public static final int BACKGROUND_REQUEST_CODE = 1998;
     public static String PACKAGE_NAME;
+    private static GetldpDatabase getldpDatabase;
+    private static LocDao locDao;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -48,7 +55,19 @@ public class MainActivity extends AppCompatActivity {
 
         requestPermissions();
         PACKAGE_NAME = getApplicationContext().getPackageName();
+        getldpDatabase = Room.databaseBuilder(getApplicationContext(), GetldpDatabase.class, "GetldpDB")
+                .allowMainThreadQueries().fallbackToDestructiveMigration().build();
+        locDao = getldpDatabase.locDao();
         // main code branch proceeds in onrequestpermissionsresult()
+        TextView textView = findViewById(R.id.textView);
+        textView.setMovementMethod(new ScrollingMovementMethod());
+        locDao.loadAll().observe(this, locEntities -> {
+            StringBuilder output = new StringBuilder();
+            for(LocEntity l : locEntities){
+                output.append(l.toString());
+            }
+            textView.setText(output.toString());
+        });
     }
 
     @Override
@@ -91,79 +110,82 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    @SuppressLint("Range")
-    public void onClickShowDetails(View view) throws RemoteException {
-        // inserting complete table details in this text field
-        TextView resultView = (TextView) findViewById(R.id.res);
-        try {
-            // creating a cursor object of the
-            // content URI
-
-            Cursor cursor = getContentResolver().query(Uri.parse(CONTENT_URI + "/" + getPackageName()), null, null, null, null);
-
-            // iteration of the cursor
-            // to print whole table
-            if (cursor.moveToFirst()) {
-                StringBuilder strBuild = new StringBuilder();
-                while (!cursor.isAfterLast()) {
-                    strBuild.append("\n" + cursor.getString(cursor.getColumnIndex("id")) + "-" + cursor.getString(cursor.getColumnIndex("latitude")) + ":" + cursor.getString(cursor.getColumnIndex("longitude")));
-                    cursor.moveToNext();
-                }
-                resultView.setText(strBuild);
-                cursor.close();
-            } else {
-                cursor.close();
-                resultView.setText(R.string.NoRecordsFound);
-            }
-        }
-        catch (java.lang.SecurityException e) {
-            resultView.setText(R.string.text_no_reaction_from_provider);
-            e.printStackTrace();
-        }
-    }
-
-    public void onClickRequestUri(View view){
-        final Intent intent=new Intent();
-        intent.setAction("com.ldp.package.uri");
-        intent.setPackage(getPackageName());
-        intent.addFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES);
-        intent.setComponent(
-                new ComponentName("com.example.locldp2","com.example.locldp2.UriRequestReceiver"));
-        sendBroadcast(intent);
-
-        //test for consuming the provider uri:
-        try {
-            Uri appSpecificUri = Uri.parse("content://" + provider_auth_uri + "/locations/"+getPackageName());
-
-        }catch (Exception e){
-            Log.d("RequestingUri: ", e.getMessage());
-        }
-    }
-
-    public void onClickTestBackground(View view) {
-        OneTimeWorkRequest request =
-                new OneTimeWorkRequest.Builder(HttpWorker.class)
-                        .build();
-        WorkManager workManager = WorkManager.getInstance(getApplicationContext());
-        workManager.enqueue(request);
-    }
-
-    public void onClickTestHttpPost(){
-        RequestQueue requestQueue = Volley.newRequestQueue(getApplicationContext());
-        LocEntity locEntity = new LocEntity();
-        locEntity.setRadius(123);
-        locEntity.setLongitude(123);
-        locEntity.setLatitude(123);
-        locEntity.setEpoch(123);
-        locEntity.setUserId(123);
-        locEntity.setExact(false);
-        Log.d("HTTP_POST", "Start of doPostRequestForResult()");
-        try {
-            JSONObject request = new JSONObject(new Gson().toJson(locEntity));
-            JsonObjectRequest jsonObjectRequest = new JsonObjectRequest(Request.Method.POST, "https://first-spring-app-locldp.azuremicroservices.io/db/addjson", request, response -> Log.d("HTTP_POST", "post done of:" + response.toString()), error -> Log.e("HTTP_POST", "something went wrong, got: " + error.getMessage()));
-            requestQueue.add(jsonObjectRequest);
-        } catch (JSONException e) {
-            Log.e("HTTP_POST_JSONException", e.getMessage());
-        }
-    }
+//    @SuppressLint("Range")
+//    public void onClickShowDetails(View view) throws RemoteException {
+//        // inserting complete table details in this text field
+//        Spinner spinner = findViewById(R.id.loadDataSpinner);
+//
+//
+//        TextView resultView = (TextView) findViewById(R.id.res);
+//        try {
+//            // creating a cursor object of the
+//            // content URI
+//
+//            Cursor cursor = getContentResolver().query(Uri.parse(CONTENT_URI + "/" + getPackageName()), null, null, null, null);
+//
+//            // iteration of the cursor
+//            // to print whole table
+//            if (cursor.moveToFirst()) {
+//                StringBuilder strBuild = new StringBuilder();
+//                while (!cursor.isAfterLast()) {
+//                    strBuild.append("\n" + cursor.getString(cursor.getColumnIndex("id")) + "-" + cursor.getString(cursor.getColumnIndex("latitude")) + ":" + cursor.getString(cursor.getColumnIndex("longitude")));
+//                    cursor.moveToNext();
+//                }
+//                resultView.setText(strBuild);
+//                cursor.close();
+//            } else {
+//                cursor.close();
+//                resultView.setText(R.string.NoRecordsFound);
+//            }
+//        }
+//        catch (java.lang.SecurityException e) {
+//            resultView.setText(R.string.text_no_reaction_from_provider);
+//            e.printStackTrace();
+//        }
+//    }
+//
+//    public void onClickRequestUri(View view){
+//        final Intent intent=new Intent();
+//        intent.setAction("com.ldp.package.uri");
+//        intent.setPackage(getPackageName());
+//        intent.addFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES);
+//        intent.setComponent(
+//                new ComponentName("com.example.locldp2","com.example.locldp2.UriRequestReceiver"));
+//        sendBroadcast(intent);
+//
+//        //test for consuming the provider uri:
+//        try {
+//            Uri appSpecificUri = Uri.parse("content://" + provider_auth_uri + "/locations/"+getPackageName());
+//
+//        }catch (Exception e){
+//            Log.d("RequestingUri: ", e.getMessage());
+//        }
+//    }
+//
+//    public void onClickTestBackground(View view) {
+//        OneTimeWorkRequest request =
+//                new OneTimeWorkRequest.Builder(HttpWorker.class)
+//                        .build();
+//        WorkManager workManager = WorkManager.getInstance(getApplicationContext());
+//        workManager.enqueue(request);
+//    }
+//
+//    public void onClickTestHttpPost(){
+//        RequestQueue requestQueue = Volley.newRequestQueue(getApplicationContext());
+//        LocEntity locEntity = new LocEntity();
+//        locEntity.setRadius(123);
+//        locEntity.setLongitude(123);
+//        locEntity.setLatitude(123);
+//        locEntity.setEpoch(123);
+//        locEntity.setUserId(123);
+//        locEntity.setExact(false);
+//        Log.d("HTTP_POST", "Start of doPostRequestForResult()");
+//        try {
+//            JSONObject request = new JSONObject(new Gson().toJson(locEntity));
+//            JsonObjectRequest jsonObjectRequest = new JsonObjectRequest(Request.Method.POST, "https://first-spring-app-locldp.azuremicroservices.io/db/addjson", request, response -> Log.d("HTTP_POST", "post done of:" + response.toString()), error -> Log.e("HTTP_POST", "something went wrong, got: " + error.getMessage()));
+//            requestQueue.add(jsonObjectRequest);
+//        } catch (JSONException e) {
+//            Log.e("HTTP_POST_JSONException", e.getMessage());
+//        }
+//    }
 }

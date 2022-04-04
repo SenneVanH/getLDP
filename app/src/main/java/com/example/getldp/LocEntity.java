@@ -1,6 +1,7 @@
 package com.example.getldp;
 
 
+import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.room.Entity;
 import androidx.room.PrimaryKey;
@@ -89,6 +90,19 @@ public class LocEntity {
 
     public void setId(long id) {
         this.id = id;
+    }
+
+    @NonNull
+    @Override
+    public String toString() {
+        return "{" +
+                "longitude=" + longitude +
+                ", latitude=" + latitude +
+                ", exact=" + exact +
+                ", timestamp=" + epoch +
+                ", radius=" + radius +
+                ", synced=" + synced +
+                '}' + "\n\n";
     }
 }
 
