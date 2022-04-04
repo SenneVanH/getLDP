@@ -45,8 +45,6 @@ public class MainActivity extends AppCompatActivity {
     public static final int FINE_REQUEST_CODE = 1999;
     public static final int BACKGROUND_REQUEST_CODE = 1998;
     public static String PACKAGE_NAME;
-    private static GetldpDatabase getldpDatabase;
-    private static LocDao locDao;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -55,9 +53,9 @@ public class MainActivity extends AppCompatActivity {
 
         requestPermissions();
         PACKAGE_NAME = getApplicationContext().getPackageName();
-        getldpDatabase = Room.databaseBuilder(getApplicationContext(), GetldpDatabase.class, "GetldpDB")
+        GetldpDatabase getldpDatabase = Room.databaseBuilder(getApplicationContext(), GetldpDatabase.class, "GetldpDB")
                 .allowMainThreadQueries().fallbackToDestructiveMigration().build();
-        locDao = getldpDatabase.locDao();
+        LocDao locDao = getldpDatabase.locDao();
         // main code branch proceeds in onrequestpermissionsresult()
         TextView textView = findViewById(R.id.textView);
         textView.setMovementMethod(new ScrollingMovementMethod());
