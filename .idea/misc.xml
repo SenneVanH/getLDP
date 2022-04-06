@@ -3,6 +3,7 @@
   <component name="DesignSurface">
     <option name="filePathToZoomLevelMap">
       <map>
+        <entry key="..\:/Documenten/getLDP/app/src/main/res/layout/activity_main.xml" value="0.24954710144927536" />
         <entry key="..\:/Users/dehae/AndroidStudioProjects/getLDP/app/src/main/res/drawable-v24/ic_launcher_foreground.xml" value="0.3135" />
         <entry key="..\:/Users/dehae/AndroidStudioProjects/getLDP/app/src/main/res/drawable/getldp_icon_v1.xml" value="0.25" />
         <entry key="..\:/Users/dehae/AndroidStudioProjects/getLDP/app/src/main/res/drawable/ic_launcher_background.xml" value="0.225" />
@@ -13,7 +14,7 @@
       </map>
     </option>
   </component>
-  <component name="ProjectRootManager" version="2" languageLevel="JDK_11" project-jdk-name="1.8" project-jdk-type="JavaSDK">
+  <component name="ProjectRootManager" version="2" languageLevel="JDK_11" default="true" project-jdk-name="1.8" project-jdk-type="JavaSDK">
     <output url="file://$PROJECT_DIR$/build/classes" />
   </component>
   <component name="ProjectType">
